@@ -1,6 +1,24 @@
 # Barely Enough Items (BEI)
 
-A minimalist item and recipe viewer for Minecraft (Forge 26.1.2). Press nothing, see nothing in your way: the item browser sits against the right edge of inventory screens, recipes open in a slim popup, and the Master Project tracker pins a crafting plan to your HUD.
+A minimalist, fast item and recipe viewer for Minecraft. The item browser sits against the right edge of inventory screens, recipes open in a slim popup grouped by station, and the Master Blueprint tracker breaks any item into a nested crafting plan pinned to your HUD.
+
+**Features**
+
+- Item browser: opens with every item, searches in the background (`@mod`, `#tag`, `$tooltip`, `-exclude`), category icons, scrollbar, and groups and hidden items from datapacks. The index builds off the render thread, so opening a screen never waits.
+- Recipe popup: recipes grouped by station (those you can make first), uses lookups, centered 3x3 crafting cards, `P` to make a recipe your project, and `+` to fill the crafting grid, furnace, stonecutter or smithing table from your inventory (Shift for a full stack).
+- Master Blueprint: a dependency tree for any item that checks your inventory (and optionally ender chest), shows the next craft or what to gather, with a percent-done HUD.
+- Themes: dark, light, and datapack themes; backdrop opacity; draggable windows; rarity-colored item tooltips.
+- Cheat mode (Ctrl+click the gear): click items to hold or place them, with no commands. Needs creative mode, operator permission, or your own singleplayer world.
+- Plugin API for mods that add recipe types and recipe cards, and [ModJS](https://github.com/ItMeCasey/ModJS) script support.
+
+**Versions**
+
+| Minecraft | Loader | State |
+|---|---|---|
+| 26.1.2 | Forge | Complete: `versions/mc26.1.2/forge` |
+| 1.21.1 | Forge | In progress: `versions/mc1.21.1/forge` |
+
+Build a version from its folder with `./gradlew build`.
 
 ## Keys
 
