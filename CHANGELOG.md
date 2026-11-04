@@ -2,7 +2,7 @@
 
 ## 2026.11.1 (Forge 1.21.1)
 
-First port of the 26.1.2 release. It builds, loads, joins a server and indexes recipes (1279 in a vanilla world); the screens have not been checked in play yet.
+First port of the 26.1.2 release, checked in play: the browser, recipe cards, tooltips and cursor counts all look right. Recipes index from the client (1279 in a vanilla world).
 
 - Recipes are read from the client's own recipe list instead of being sent by the server, so modded recipe types that implement the standard recipe interface show up and `hideCategories` works on any server.
 - See `docs/PORTING.md` for the differences from the 26.1.2 build.

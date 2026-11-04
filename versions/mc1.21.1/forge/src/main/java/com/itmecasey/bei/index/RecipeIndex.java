@@ -119,7 +119,7 @@ public final class RecipeIndex {
     /** The station a vanilla recipe type is made in. */
     private static @Nullable Item stationOf(String typePath) {
         return switch (typePath) {
-            case "crafting_shaped", "crafting_shapeless", "crafting_transmute" -> Items.CRAFTING_TABLE;
+            case "crafting", "crafting_shaped", "crafting_shapeless", "crafting_transmute" -> Items.CRAFTING_TABLE;
             case "smelting" -> Items.FURNACE;
             case "blasting" -> Items.BLAST_FURNACE;
             case "smoking" -> Items.SMOKER;
@@ -173,10 +173,11 @@ public final class RecipeIndex {
         boolean vanilla = typeId != null && typeId.getNamespace().equals("minecraft");
         String type;
         int width = 0;
-        if (vanilla && path.equals("crafting_shaped") && recipe instanceof ShapedRecipe shaped) {
+        // In 1.21.1 shaped and shapeless recipes share the one "crafting" type; the class tells them apart.
+        if (vanilla && path.startsWith("crafting") && recipe instanceof ShapedRecipe shaped) {
             type = "ShapedCrafting";
             width = shaped.getWidth();
-        } else if (vanilla && path.equals("crafting_shapeless")) {
+        } else if (vanilla && path.startsWith("crafting")) {
             type = "ShapelessCrafting";
         } else if (vanilla && (path.equals("smelting") || path.equals("blasting") || path.equals("smoking") || path.equals("campfire_cooking"))) {
             type = "Furnace";

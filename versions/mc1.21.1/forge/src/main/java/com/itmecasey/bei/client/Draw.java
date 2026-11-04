@@ -40,16 +40,29 @@ public final class Draw {
         graphics.renderOutline(x, y, width, height, color);
     }
 
+    /**
+     * Text is lifted above items, which the game draws 150 units forward; without this, a count
+     * written over an item's icon would sit behind it.
+     */
     public void text(Font font, String text, int x, int y, int color, boolean shadow) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(0, 0, 200);
         graphics.drawString(font, text, x, y, color, shadow);
+        graphics.pose().popPose();
     }
 
     public void text(Font font, Component text, int x, int y, int color, boolean shadow) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(0, 0, 200);
         graphics.drawString(font, text, x, y, color, shadow);
+        graphics.pose().popPose();
     }
 
     public void text(Font font, FormattedCharSequence text, int x, int y, int color, boolean shadow) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(0, 0, 200);
         graphics.drawString(font, text, x, y, color, shadow);
+        graphics.pose().popPose();
     }
 
     public void item(ItemStack stack, int x, int y) {

@@ -16,7 +16,7 @@ A minimalist, fast item and recipe viewer for Minecraft. The item browser sits a
 | Minecraft | Loader | State |
 |---|---|---|
 | 26.1.2 | Forge | Complete: `versions/mc26.1.2/forge` |
-| 1.21.1 | Forge | Builds and loads, joins a server and indexes recipes; the screens are not yet checked in play: `versions/mc1.21.1/forge` |
+| 1.21.1 | Forge | Complete: `versions/mc1.21.1/forge` |
 
 See [docs/PORTING.md](docs/PORTING.md) for what differs between the two.
 
