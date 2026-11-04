@@ -142,6 +142,28 @@ public final class BrowserPanel {
         });
     }
 
+    /** Sets the search text, as if typed (used by the screenshot tour). */
+    public static void search(String text) {
+        query = text;
+        scroll = 0;
+        if (box != null) {
+            box.setValue(text);
+        }
+        dirty = true;
+    }
+
+    /** The screen position of the center of a result cell, or null if it is not on screen (used by the screenshot tour). */
+    public static int[] cellCenter(int index) {
+        if (!shown || cols < 1) {
+            return null;
+        }
+        int row = index / cols - scroll;
+        if (row < 0 || row >= rows) {
+            return null;
+        }
+        return new int[] {gridX + (index % cols) * CELL + CELL / 2, gridY + row * CELL + CELL / 2};
+    }
+
     /** Runs the search again (the groups or hidden items changed). */
     public static void invalidate() {
         dirty = true;

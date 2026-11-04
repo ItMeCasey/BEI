@@ -24,7 +24,7 @@ A minimalist, fast item and recipe viewer for Minecraft. The item browser sits a
 
 BEI works on the client alone for browsing and search. On 26.1.2 the server must also have BEI for recipes to show (the game only gives a client the recipes it has unlocked); datapack themes, groups and hidden items, and cheat mode, need BEI on the server in both versions. On 1.21.1 recipes come with the game.
 
-See [docs/PORTING.md](docs/PORTING.md) for what differs between the two versions, and the [wiki](https://github.com/ItMeCasey/BEI/wiki) for guides.
+See [docs/PORTING.md](docs/PORTING.md) for what differs between the two versions, and the [wiki](https://itmecasey.com/wiki/bei/) for guides.
 
 ## Build
 
