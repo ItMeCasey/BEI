@@ -70,6 +70,7 @@ public final class ThemeChannel {
                         map.put(message.ids().get(i), message.json().get(i));
                     }
                     com.itmecasey.bei.client.Themes.setCustom(map);
+                    Bei.LOGGER.info("Received {} datapack theme(s)", map.size());
                     context.setPacketHandled(true);
                 })
                 .add();

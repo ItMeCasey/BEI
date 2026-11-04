@@ -11,16 +11,30 @@ A minimalist, fast item and recipe viewer for Minecraft. The item browser sits a
 - Cheat mode (Ctrl+click the gear): click items to hold or place them, with no commands. Needs creative mode, operator permission, or your own singleplayer world.
 - Plugin API for mods that add recipe types and recipe cards, and [ModJS](https://github.com/ItMeCasey/ModJS) script support.
 
-**Versions**
+## Install
 
-| Minecraft | Loader | State |
-|---|---|---|
-| 26.1.2 | Forge | Complete: `versions/mc26.1.2/forge` |
-| 1.21.1 | Forge | Complete: `versions/mc1.21.1/forge` |
+1. Install Forge for your Minecraft version.
+2. Download the matching jar from the [Releases](https://github.com/ItMeCasey/BEI/releases) page and put it in your `mods` folder.
+3. Open any inventory screen: the browser is on the right edge.
 
-See [docs/PORTING.md](docs/PORTING.md) for what differs between the two.
+| Minecraft | Loader | Java | Folder |
+|---|---|---|---|
+| 26.1.2 | Forge | 25 | `versions/mc26.1.2/forge` |
+| 1.21.1 | Forge | 21 | `versions/mc1.21.1/forge` |
 
-Build a version from its folder with `./gradlew build`.
+BEI works on the client alone for browsing and search. On 26.1.2 the server must also have BEI for recipes to show (the game only gives a client the recipes it has unlocked); datapack themes, groups and hidden items, and cheat mode, need BEI on the server in both versions. On 1.21.1 recipes come with the game.
+
+See [docs/PORTING.md](docs/PORTING.md) for what differs between the two versions, and the [wiki](https://github.com/ItMeCasey/BEI/wiki) for guides.
+
+## Build
+
+From a version's folder:
+
+```
+./gradlew build      # the mod jar, in build/libs
+./gradlew apiJar     # only the plugin API, for mods that add BEI plugins
+./gradlew runClient  # a development client
+```
 
 ## Keys
 
@@ -37,7 +51,7 @@ Search words: `@mod`, `#tag`, `$tooltip text`, and `-word` to leave matches out.
 
 ## Themes from datapacks
 
-Put a JSON file at `data/<namespace>/bei_themes/<name>.json` in any datapack. The server sends it to players when they join, and it shows up in the gear popup's Theme row as `<namespace>:<name>`. (Singleplayer worlds work too; rejoin the world after changing the datapack.)
+Put a JSON file at `data/<namespace>/bei_themes/<name>.json` in any datapack. The server sends it to players when they join, and it shows up in the gear popup's Theme row as `<namespace>:<name>`. (Singleplayer worlds work too; `/reload` resends them, no rejoin needed.)
 
 ```json
 {
@@ -149,3 +163,7 @@ With [ModJS](https://github.com/ItMeCasey/ModJS) installed, its client scripts (
 - `hideCategories(e => e.hide('minecraft:campfire_cooking'))` hides recipes by recipe type id (`minecraft:crafting` covers every crafting type). It needs the server to have BEI, since BEI learns each recipe's type from it.
 - ModJS's unifier: items it replaces are hidden so only the canonical item shows.
 - Scripts are read when a world is joined.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

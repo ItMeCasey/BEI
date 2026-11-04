@@ -84,6 +84,7 @@ public final class GroupChannel {
                         groups.put(data.groupIds().get(i), data.groupJson().get(i));
                     }
                     Groups.set(groups, data.hiddenJson());
+                    Bei.LOGGER.info("Received {} datapack group file(s) and {} hidden list(s)", groups.size(), data.hiddenJson().size());
                     BrowserPanel.invalidate();
                     context.setPacketHandled(true);
                 })

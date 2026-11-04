@@ -4,6 +4,7 @@
 
 First port of the 26.1.2 release, checked in play: the browser, recipe cards, tooltips and cursor counts all look right. Recipes index from the client (1279 in a vanilla world).
 
+- Datapack themes, groups and hidden lists are resent when the datapacks reload, not only on join.
 - Recipes are read from the client's own recipe list instead of being sent by the server, so modded recipe types that implement the standard recipe interface show up and `hideCategories` works on any server.
 - See `docs/PORTING.md` for the differences from the 26.1.2 build.
 
@@ -19,4 +20,5 @@ First release.
 - Cheat mode: hold items on a remembered cursor or place them in the inventory, with no commands; server-side permission check.
 - Plugin API (`@BeiPlugin`) for custom recipe categories, recipes, card slots and painters; `gradlew apiJar` builds the API alone.
 - ModJS support: hide items, hide categories, add information pages, item groups, and unifier hiding, all read by reflection.
+- Datapack themes, groups and hidden lists, and the recipe list, are resent when the datapacks reload, not only on join.
 - Server channels are size-bounded so a hostile server cannot exhaust memory or kick players with oversized packets.
