@@ -1,0 +1,39 @@
+name: Feature request
+description: An idea for something BEI could show or do.
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      placeholder: Let me pin more than one Master Project at a time.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help?
+      description: What you're trying to do in game, and what you do now instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: What part of BEI is it about?
+      options:
+        - Item browser and search
+        - Recipe popup and auto-fill
+        - Master Blueprint
+        - Themes and look
+        - Settings and keys
+        - Datapacks and ModJS
+        - Cheat mode
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: mockup
+    attributes:
+      label: Sketch or example
+      description: A mockup, a screenshot from another mod, or a short description of how it would look.

@@ -1,0 +1,60 @@
+name: Plugin or API request (mod authors)
+description: You're adding BEI support to your mod and the API is missing something or behaves unexpectedly.
+title: "[API] "
+labels: ["api"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [plugin guide](https://itmecasey.com/wiki/bei/?p=make-a-plugin) and the [README](https://github.com/ItMeCasey/BEI#plugins-custom-recipe-types-and-cards) first.
+  - type: input
+    id: mod
+    attributes:
+      label: Your mod
+      description: Name, and a link if it's public.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of request is it?
+      options:
+        - Something is missing from the API
+        - The API doesn't behave as documented
+        - A question about how to do something
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to show?
+      placeholder: My machine has a 3-input recipe with a progress bar and I want the card to match.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried
+      description: The code you have so far and what happened.
+      render: java
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would work for you?
+      description: Optional. A method or hook you'd like, if you have one in mind.
+  - type: input
+    id: bei
+    attributes:
+      label: BEI version you build against
+    validations:
+      required: true
+  - type: dropdown
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      options:
+        - 26.1.2
+        - 1.21.1
+        - 1.20.1
+    validations:
+      required: true

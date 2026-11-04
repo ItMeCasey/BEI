@@ -1,0 +1,86 @@
+name: Bug report
+description: Something in BEI doesn't work the way it should.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. If the game crashed, use **Crash report** instead.
+        If a recipe or item is missing or wrong, use **Recipe or item problem**.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected to see.
+      placeholder: When I press P on a pickaxe, the Master Blueprint HUD shows 0% even though I have every ingredient.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the inventory
+        2. Press P on an item in the browser
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: bei
+    attributes:
+      label: BEI version
+      description: From the jar's file name or the mod list.
+    validations:
+      required: true
+  - type: dropdown
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      options:
+        - 26.1.2
+        - 1.21.1
+        - 1.20.1
+    validations:
+      required: true
+  - type: dropdown
+    id: loader
+    attributes:
+      label: Loader
+      options:
+        - Forge
+        - NeoForge
+    validations:
+      required: true
+  - type: input
+    id: loader_version
+    attributes:
+      label: Loader version
+      placeholder: Forge 52.0.0 / NeoForge 21.1.0
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where is BEI installed?
+      options:
+        - Single player
+        - Client only, on a server without BEI
+        - Client and server
+    validations:
+      required: true
+  - type: textarea
+    id: mods
+    attributes:
+      label: Other mods
+      description: The mods in your instance, or a link to your modpack. Leave empty if it happens with BEI alone.
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or video
+      description: Drag images or a short clip in here. A screenshot of the screen helps a lot.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        `logs/latest.log` from your Minecraft folder. For a long log, upload it to https://mclo.gs or a GitHub gist and paste the link.
+      render: text

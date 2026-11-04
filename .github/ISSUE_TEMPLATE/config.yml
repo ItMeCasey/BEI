@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Guides and how-tos
+    url: https://itmecasey.com/wiki/bei/
+    about: Install steps, keys, themes, datapacks, the Master Blueprint and the FAQ.
+  - name: Adding BEI support to your mod
+    url: https://itmecasey.com/wiki/bei/?p=make-a-plugin
+    about: How to write a plugin with custom recipe types and cards. Read this first, then open a "Plugin or API request" if something is missing.

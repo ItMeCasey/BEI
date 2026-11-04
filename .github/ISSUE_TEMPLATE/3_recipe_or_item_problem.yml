@@ -1,0 +1,66 @@
+name: Recipe or item problem
+description: A recipe or item is missing, wrong, or won't show in BEI.
+title: "[Recipe] "
+labels: ["recipes"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Mods that add their own recipe types need a small BEI plugin to show them fully. See the [plugin guide](https://itmecasey.com/wiki/bei/?p=plugins). If the mod is yours, use **Plugin or API request** instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What's wrong?
+      placeholder: The Create mixing recipes are missing, or the stonecutter recipe for stone bricks shows the wrong ingredient.
+    validations:
+      required: true
+  - type: input
+    id: item
+    attributes:
+      label: Item or recipe
+      description: The item id if you know it, for example `create:cogwheel`.
+  - type: input
+    id: bei
+    attributes:
+      label: BEI version
+    validations:
+      required: true
+  - type: dropdown
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      options:
+        - 26.1.2
+        - 1.21.1
+        - 1.20.1
+    validations:
+      required: true
+  - type: dropdown
+    id: loader
+    attributes:
+      label: Loader
+      options:
+        - Forge
+        - NeoForge
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where is BEI installed?
+      description: On 26.1.2 the server needs BEI for recipes to show.
+      options:
+        - Single player
+        - Client only, on a server without BEI
+        - Client and server
+    validations:
+      required: true
+  - type: textarea
+    id: mods
+    attributes:
+      label: Mods that add the recipe or item
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots
+      description: What BEI shows, and what the mod's own recipe screen shows if it has one.
