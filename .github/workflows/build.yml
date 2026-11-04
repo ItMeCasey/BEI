@@ -29,7 +29,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build
         working-directory: versions/${{ matrix.dir }}
-        run: ./gradlew build apiJar --console=plain
+        run: |
+          chmod +x gradlew
+          ./gradlew build apiJar --console=plain
       - uses: actions/upload-artifact@v4
         with:
           name: bei-${{ matrix.id }}

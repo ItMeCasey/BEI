@@ -50,7 +50,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build
         working-directory: versions/${{ matrix.dir }}
-        run: ./gradlew build --console=plain
+        run: |
+          chmod +x gradlew
+          ./gradlew build --console=plain
       - uses: actions/upload-artifact@v4
         with:
           name: jar-${{ matrix.mc }}-${{ matrix.loader }}
