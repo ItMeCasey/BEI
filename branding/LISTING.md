@@ -2,6 +2,7 @@
 
 | Field | Value |
 |---|---|
+| Project ID | 1783910 |
 | Name | Barely Enough Items |
 | Slug | `barely-enough-items` |
 | Logo | `icon/icon_512.png` (square, at least 400x400) |
