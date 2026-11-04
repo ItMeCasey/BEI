@@ -1,0 +1,121 @@
+name: Release
+
+# Pushing a version tag (for example 2026.11.2) builds every version and loader and, only if all of
+# them build, uploads each jar to CurseForge and attaches them all to a GitHub release.
+#
+# One-time setup: add a repository secret named CURSEFORGE_TOKEN (a CurseForge API token from your
+# account's API tokens page). Nothing is uploaded without it.
+on:
+  push:
+    tags: ['20*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build (must match mod_version)'
+        required: true
+
+env:
+  CURSEFORGE_PROJECT: '1783910'
+
+jobs:
+  build:
+    name: Build ${{ matrix.dir }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { dir: mc26.1.2/forge, java: 25, mc: '26.1.2', loader: forge }
+          - { dir: mc26.1.2/neoforge, java: 25, mc: '26.1.2', loader: neoforge }
+          - { dir: mc1.21.1/forge, java: 21, mc: '1.21.1', loader: forge }
+          - { dir: mc1.21.1/neoforge, java: 21, mc: '1.21.1', loader: neoforge }
+          - { dir: mc1.20.1/forge, java: 17, mc: '1.20.1', loader: forge }
+          - { dir: mc1.20.1/neoforge, java: 17, mc: '1.20.1', loader: neoforge }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: The tag must match the mod version
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          version=$(grep '^mod_version=' versions/${{ matrix.dir }}/gradle.properties | cut -d= -f2)
+          if [ "$tag" != "$version" ]; then
+            echo "Tag $tag does not match mod_version $version in versions/${{ matrix.dir }}/gradle.properties" >&2
+            exit 1
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        working-directory: versions/${{ matrix.dir }}
+        run: ./gradlew build --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jar-${{ matrix.mc }}-${{ matrix.loader }}
+          path: |
+            versions/${{ matrix.dir }}/build/libs/*.jar
+            !versions/${{ matrix.dir }}/build/libs/*-api.jar
+            !versions/${{ matrix.dir }}/build/libs/*-sources.jar
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - { mc: '26.1.2', loader: forge, java: '25' }
+          - { mc: '26.1.2', loader: neoforge, java: '25' }
+          - { mc: '1.21.1', loader: forge, java: '21' }
+          - { mc: '1.21.1', loader: neoforge, java: '21' }
+          - { mc: '1.20.1', loader: forge, java: '17' }
+          - { mc: '1.20.1', loader: neoforge, java: '17' }
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: jar-${{ matrix.mc }}-${{ matrix.loader }}
+          path: dist
+      - name: Upload to CurseForge
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ env.CURSEFORGE_PROJECT }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/*.jar
+          name: Barely Enough Items ${{ inputs.tag || github.ref_name }} for ${{ matrix.loader }} ${{ matrix.mc }}
+          version: ${{ inputs.tag || github.ref_name }}
+          version-type: release
+          loaders: ${{ matrix.loader }}
+          game-versions: ${{ matrix.mc }}
+          java: ${{ matrix.java }}
+          changelog: "See the changelog: https://github.com/ItMeCasey/BEI/blob/main/CHANGELOG.md"
+          fail-mode: fail
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.mc }}-${{ matrix.loader }}
+          path: dist/*.jar
+
+  github-release:
+    name: GitHub release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: ${{ inputs.tag || github.ref_name }}
+          body: |
+            Barely Enough Items ${{ inputs.tag || github.ref_name }}. Pick the jar for your Minecraft version and loader.
+            See the [changelog](https://github.com/ItMeCasey/BEI/blob/main/CHANGELOG.md) and the [wiki](https://itmecasey.com/wiki/bei/).
+          files: dist/*.jar

@@ -1,0 +1,36 @@
+name: Build
+
+# Builds every version and loader on each push and pull request, so a break shows up before a release.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.dir }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: mc26.1.2/forge, id: mc26.1.2-forge, java: 25 }
+          - { dir: mc26.1.2/neoforge, id: mc26.1.2-neoforge, java: 25 }
+          - { dir: mc1.21.1/forge, id: mc1.21.1-forge, java: 21 }
+          - { dir: mc1.21.1/neoforge, id: mc1.21.1-neoforge, java: 21 }
+          - { dir: mc1.20.1/forge, id: mc1.20.1-forge, java: 17 }
+          - { dir: mc1.20.1/neoforge, id: mc1.20.1-neoforge, java: 17 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        working-directory: versions/${{ matrix.dir }}
+        run: ./gradlew build apiJar --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bei-${{ matrix.id }}
+          path: versions/${{ matrix.dir }}/build/libs/*.jar
