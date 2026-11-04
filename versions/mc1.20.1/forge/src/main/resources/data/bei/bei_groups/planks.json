@@ -1,0 +1,5 @@
+{
+  "name": "Planks",
+  "icon": "minecraft:oak_planks",
+  "items": ["#minecraft:planks"]
+}

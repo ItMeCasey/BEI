@@ -1,6 +1,6 @@
 # Barely Enough Items (BEI)
 
-A minimalist, fast item and recipe viewer for Minecraft. The item browser sits against the right edge of inventory screens, recipes open in a slim popup grouped by station, and the Master Blueprint tracker breaks any item into a nested crafting plan pinned to your HUD.
+A minimalist, fast item and recipe viewer for Minecraft (Forge and NeoForge). The item browser sits against the right edge of inventory screens, recipes open in a slim popup grouped by station, and the Master Blueprint tracker breaks any item into a nested crafting plan pinned to your HUD.
 
 **Features**
 
@@ -13,18 +13,24 @@ A minimalist, fast item and recipe viewer for Minecraft. The item browser sits a
 
 ## Install
 
-1. Install Forge for your Minecraft version.
+1. Install Forge or NeoForge for your Minecraft version.
 2. Download the matching jar from the [Releases](https://github.com/ItMeCasey/BEI/releases) page and put it in your `mods` folder.
 3. Open any inventory screen: the browser is on the right edge.
 
 | Minecraft | Loader | Java | Folder |
 |---|---|---|---|
 | 26.1.2 | Forge | 25 | `versions/mc26.1.2/forge` |
+| 26.1.2 | NeoForge | 25 | `versions/mc26.1.2/neoforge` |
 | 1.21.1 | Forge | 21 | `versions/mc1.21.1/forge` |
+| 1.21.1 | NeoForge | 21 | `versions/mc1.21.1/neoforge` |
+| 1.20.1 | Forge | 17 | `versions/mc1.20.1/forge` |
+| 1.20.1 | NeoForge | 17 | `versions/mc1.20.1/neoforge` |
 
-BEI works on the client alone for browsing and search. On 26.1.2 the server must also have BEI for recipes to show (the game only gives a client the recipes it has unlocked); datapack themes, groups and hidden items, and cheat mode, need BEI on the server in both versions. On 1.21.1 recipes come with the game.
+The two Forge builds for 26.1.2 and 1.21.1 have been played and checked on screen. The other four build, load, join a server (NeoForge 1.20.1: singleplayer only) and index recipes; their screens have not been checked in play yet.
 
-See [docs/PORTING.md](docs/PORTING.md) for what differs between the two versions, and the [wiki](https://itmecasey.com/wiki/bei/) for guides.
+BEI works on the client alone for browsing and search. On 26.1.2 the server must also have BEI for recipes to show (the game only gives a client the recipes it has unlocked); datapack themes, groups and hidden items, and cheat mode, need BEI on the server in both versions. On 1.21.1 and 1.20.1 recipes come with the game.
+
+See [docs/PORTING.md](docs/PORTING.md) for what differs between the versions, and the [wiki](https://itmecasey.com/wiki/bei/) for guides.
 
 ## Build
 

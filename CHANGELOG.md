@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.1 (NeoForge 26.1.2, NeoForge 1.21.1, Forge 1.20.1, NeoForge 1.20.1)
+
+Ports of the release below. Each builds, loads, joins a server and indexes recipes (NeoForge 1.20.1 was only tried in singleplayer, because its dev server crashes in the development environment); none has been checked on screen yet.
+
+- The NeoForge builds use NeoForge's payload networking, mod-bus events and config spec; the 1.20.1 builds use Forge's classic channel and read recipes from the client's recipe list.
+- On 1.20.1 recipes come with the game, as on 1.21.1.
+
 ## 2026.11.1 (Forge 1.21.1)
 
 First port of the 26.1.2 release, checked in play: the browser, recipe cards, tooltips and cursor counts all look right. Recipes index from the client (1279 in a vanilla world).

@@ -17,3 +17,10 @@ Both builds live under `versions/` and share one design; the 1.21.1 tree started
 | Permissions | `permissions().hasPermission(...)` | `hasPermissions(2)` |
 
 Everything else (index, search, groups, themes, blueprint, project, cheat mode, ModJS compat) is the same code.
+
+## NeoForge and 1.20.1
+
+- **NeoForge 26.1.2 and 1.21.1** share the code of their Forge builds. What changes is the loader layer: `net.neoforged` packages, a `(IEventBus, ModContainer)` mod constructor, `ModConfigSpec`, mod-bus event registration, and networking through payload records with stream codecs (one optional registrar, `net/Channels.java`) in place of `SimpleChannel`. NeoForge handlers cancel events with `setCanceled`, and the project HUD registers with `RegisterGuiLayersEvent`.
+- **1.20.1 (Forge and NeoForge)** is derived from the 1.21.1 tree. There are no data components and no `RecipeHolder` (recipes are `Recipe` objects with `getId()`), `ResourceLocation` is built with its constructor, tooltips come from `getTooltipLines(Player, TooltipFlag)`, and the HUD registers with `RegisterGuiOverlaysEvent`. Networking is Forge's classic `SimpleChannel`, kept optional.
+- NeoForge 1.20.1 still uses the `net.minecraftforge` package names, so its tree differs from Forge 1.20.1 only in build files and a few calls.
+- The 1.20.1 builds need Java 17 for Gradle; a newer default JDK fails.
