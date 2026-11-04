@@ -1,0 +1,131 @@
+# Barely Enough Items (BEI)
+
+A minimalist item and recipe viewer for Minecraft (Forge 26.1.2). Press nothing, see nothing in your way: the item browser sits against the right edge of inventory screens, recipes open in a slim popup, and the Master Project tracker pins a crafting plan to your HUD.
+
+## Keys
+
+| Key | Does |
+|---|---|
+| `R` on an item | Recipes that make it |
+| `U` on an item | Recipes that use it |
+| `P` on an item | Make it your Master Project (again to clear) |
+| `J` | Open the full project tree |
+| `H` | Show or hide the project HUD |
+| `/` | Focus the search box |
+
+Search words: `@mod`, `#tag`, `$tooltip text`, and `-word` to leave matches out.
+
+## Themes from datapacks
+
+Put a JSON file at `data/<namespace>/bei_themes/<name>.json` in any datapack. The server sends it to players when they join, and it shows up in the gear popup's Theme row as `<namespace>:<name>`. (Singleplayer worlds work too; rejoin the world after changing the datapack.)
+
+```json
+{
+  "name": "Neon",
+  "base": "bei:dark",
+  "colors": {
+    "bg": "#0b0014",
+    "card": "#1a0830",
+    "card_hover": "#2a1050",
+    "field": "#07000d",
+    "accent": "#ff2bd6",
+    "text": "#f4e8ff",
+    "dim": "#9a7fb8",
+    "good": "#5dffb0",
+    "bad": "#ff5d7a",
+    "warn": "#ffd45d",
+    "border": "#5a2a8a",
+    "tooltip": "#0b0014"
+  }
+}
+```
+
+- `name` is what the Theme row shows (the file id if left out).
+- `base` is `bei:dark` (the default) or `bei:light`; any color you leave out comes from it.
+- Colors are `#RRGGBB`. Backdrop transparency still comes from the player's opacity setting.
+
+## Groups and hidden items from datapacks
+
+Group items under one browser cell, or hide items from the browser, with JSON files in a datapack. Like themes, the server sends them when a player joins.
+
+`data/<namespace>/bei_groups/<name>.json`:
+
+```json
+{
+  "name": "Wool",
+  "icon": "minecraft:white_wool",
+  "items": ["#minecraft:wool", "minecraft:string"]
+}
+```
+
+`data/<namespace>/bei_hidden/<name>.json`:
+
+```json
+{ "items": ["minecraft:debug_stick", "@somemod"] }
+```
+
+- Each entry is an item id (`minecraft:stick`), an item tag (`#minecraft:logs`) or a whole mod (`@modid`).
+- A group needs at least two items. An item belongs to the first group (by file id) that lists it. `icon` is optional and defaults to the first item.
+- In the browser a group is one highlighted cell with its item count. Searching shows the group if any item in it matches.
+- Hover a group to see every item in it. Hold Shift to freeze that tooltip, then move into it to see each item's own tooltip and click one.
+- Right-click a group to expand it inline (all its items follow it, highlighted); right-click again to collapse.
+- BEI ships a few example groups (wool, planks, logs, saplings) in its own `data/bei/bei_groups/`.
+
+## Plugins: custom recipe types and cards
+
+A mod adds its own recipe categories, recipes and card looks with a class marked `@BeiPlugin`. BEI finds it by scanning mod classes, so the mod needs no call into BEI and works fine without BEI installed. Compile against `./gradlew apiJar`, which holds only the `com.itmecasey.bei.api` package.
+
+```java
+@BeiPlugin("mymachines")            // optional: only load when this mod is installed
+public class MyPlugin implements IBeiPlugin {
+    private RecipeCategory grinding;
+
+    @Override
+    public void registerCategories(ICategoryRegistration registration) {
+        grinding = RecipeCategory.builder(Identifier.fromNamespaceAndPath("mymachines", "grinding"))
+                .title(Component.literal("Grinding"))
+                .station(new ItemStack(MyItems.GRINDER.get()))   // its icon becomes the category's button
+                .size(110, 36)                                   // card area in pixels
+                .input(8, 9)                                     // slot positions inside the card area
+                .input(28, 9)
+                .output(86, 9)
+                .painter(new CardPainter() {                     // optional extras: arrows, bars, text
+                    public void paint(GuiGraphicsExtractor g, CustomRecipe recipe, int mx, int my) {
+                        g.fill(50, 16, 78, 20, 0xFF4F9DFF);
+                    }
+                    public List<Component> tooltip(CustomRecipe recipe, int mx, int my) {
+                        return mx >= 50 && mx < 78 ? List.of(Component.literal("Takes 4 seconds")) : null;
+                    }
+                })
+                .build();
+        registration.register(grinding);
+    }
+
+    @Override
+    public void registerRecipes(IRecipeRegistration registration) {
+        registration.add(grinding, CustomRecipe.builder()
+                .input(new ItemStack(Items.COBBLESTONE))
+                .input(new ItemStack(Items.DIAMOND))
+                .output(new ItemStack(Items.GRAVEL, 4))
+                .build());
+    }
+}
+```
+
+- Plugins run on the client. `registerCategories` runs once, the first time the player joins a world; build item stacks in it (not in static fields) because stacks cannot be made while the game starts. `registerRecipes` runs each time the recipe list is built, so recipes may depend on the world.
+- Custom recipes show in the recipe popup under their station button, in "uses" lookups, and in the Master Project tracker like any other recipe. The card is centered, with BEI's `P` button on it.
+- The n-th input slot you declare shows the recipe's n-th `input(...)`, and likewise for outputs. An `input(...)` can list several stacks; BEI cycles through them.
+- `painter` draws inside the card area with (0, 0) at its top left, under the item slots.
+- A plugin that fails to load or throws is logged and skipped; it cannot break BEI or other plugins.
+- `ExamplePlugin` in BEI's source is a working sample; it only switches on in the development client.
+
+## ModJS scripts
+
+With [ModJS](https://github.com/ItMeCasey/ModJS) installed, its client scripts (`RecipeViewerEvents`) control BEI. BEI reaches ModJS by reflection, so it needs no ModJS jar to build and does nothing without it.
+
+- `hideItems(e => e.hide('minecraft:dirt', '#minecraft:wool', '@create'))` hides items from the browser, same as a datapack hidden list.
+- `groupItems(e => e.group('Gems', ['minecraft:diamond', '#c:gems'], { icon: 'minecraft:diamond' }))` makes browser groups, which follow the groups' normal rules (script groups come after datapack groups; an item belongs to the first group that lists it).
+- `addInformation(e => e.add('minecraft:diamond', 'Found deep underground.'))` adds an "Information" button with the text to those items' recipe popup.
+- `hideCategories(e => e.hide('minecraft:campfire_cooking'))` hides recipes by recipe type id (`minecraft:crafting` covers every crafting type). It needs the server to have BEI, since BEI learns each recipe's type from it.
+- ModJS's unifier: items it replaces are hidden so only the canonical item shows.
+- Scripts are read when a world is joined.

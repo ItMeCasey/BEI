@@ -1,0 +1,49 @@
+# Gradle and build output
+.gradle/
+build/
+out/
+run/
+*.class
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+bin/
+.metadata/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python (asset tools)
+__pycache__/
+*.pyc
+
+# Local handoff copies and scratch work
+reference/
+
+# Private planning notes (kept locally only)
+PLAN.md
+PROJECT_STATUS.md
+RODIN_PROMPTS.md
+
+# Secrets and local config; never commit these
+.env
+*.token
+local.properties
+
+# Concept art; kept local
+concept/
+run-data/
+PROJECT_STATUS.md
+server.out
+server.err
+*.out
+*.err
