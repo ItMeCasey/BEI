@@ -1,0 +1,236 @@
+<!doctype html>
+<!--
+  Renders the BEI banners. Each asset is picked by the URL hash, e.g. banners.html#banner.
+  branding/source/render_banners.py screenshots every asset with headless Chrome.
+  The pixel font and sprites below are original to this project.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg0: #0f0e1a; --bg1: #1a1830; --edge: #2e2a46;
+    --cy: #2ec4d6; --cy-hi: #b4f6ff; --cy-lo: #1b7f95;
+    --blue: #4a9bff; --text: #f4f2ff; --muted: #a9a4c8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg0); overflow: hidden; }
+  body { font-family: "Bahnschrift", "Segoe UI", sans-serif; color: var(--text); }
+  .stage { position: relative; overflow: hidden;
+    background:
+      radial-gradient(ellipse at 18% 40%, rgba(46,196,214,.16), transparent 55%),
+      radial-gradient(ellipse at 85% 70%, rgba(74,155,255,.12), transparent 50%),
+      linear-gradient(160deg, var(--bg1), var(--bg0)); }
+  .stage::before { content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 32px 32px; }
+  .stage > * { position: relative; }
+  canvas { image-rendering: pixelated; display: block; }
+  .icon { image-rendering: pixelated; display: block; filter: drop-shadow(0 10px 24px rgba(0,0,0,.5)); }
+  .tag { font-size: 30px; color: var(--muted); letter-spacing: .5px; }
+  .tag b { color: var(--text); font-weight: 600; }
+  .meta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .pill { font-size: 20px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--edge);
+    background: rgba(255,255,255,.04); color: var(--muted); }
+  .pill.on { color: var(--bg0); background: var(--cy); border-color: var(--cy); font-weight: 600; }
+
+  /* Mock popups, shaped like the mod's dark theme. */
+  .panel { display: inline-flex; flex-direction: column; gap: 10px; padding: 14px 18px 16px; border-radius: 6px;
+    background: rgba(16, 14, 28, .94); border: 2px solid #3a3360;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.6), 0 18px 40px rgba(0,0,0,.45); }
+  .search { height: 26px; border-radius: 3px; background: #1d1a30; border: 1px solid #000; display: flex;
+    align-items: center; padding-left: 8px; font-size: 16px; color: var(--blue); }
+  .search i { color: var(--muted); font-style: normal; margin-left: 6px; }
+  .craft { display: flex; align-items: center; gap: 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 44px); gap: 4px; }
+  .slot { width: 44px; height: 44px; border-radius: 3px; background: #24203a; display: grid; place-items: center;
+    box-shadow: inset 2px 2px 0 #0c0b16, inset -2px -2px 0 #4a4670; }
+  .slot.out { width: 56px; height: 56px; }
+  .arrow { width: 0; height: 0; border: 9px solid transparent; border-left: 14px solid var(--cy); border-right: 0; }
+  .stat { font-size: 16px; color: var(--muted); }
+  .stat b { color: var(--cy); font-weight: 600; }
+  .bar { position: relative; height: 22px; border-radius: 3px; background: #2a2640; overflow: hidden; border: 1px solid #000; }
+  .bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg,#1fa597,#5ff0e0); }
+  .bar span { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 8px;
+    font-size: 16px; color: #fff; text-shadow: 1px 1px 0 #000; }
+  .cap { font-size: 22px; color: var(--muted); margin-top: 14px; }
+  .cap b { display: block; font-size: 26px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ---------- pixel font (5x7, original) ----------
+const FONT = {
+  A:[".###.","#...#","#...#","#####","#...#","#...#","#...#"],
+  B:["####.","#...#","#...#","####.","#...#","#...#","####."],
+  C:[".###.","#...#","#....","#....","#....","#...#",".###."],
+  D:["####.","#...#","#...#","#...#","#...#","#...#","####."],
+  E:["#####","#....","#....","####.","#....","#....","#####"],
+  F:["#####","#....","#....","####.","#....","#....","#...."],
+  G:[".###.","#...#","#....","#.###","#...#","#...#",".###."],
+  H:["#...#","#...#","#...#","#####","#...#","#...#","#...#"],
+  I:["###",".#.",".#.",".#.",".#.",".#.","###"],
+  J:["..###","...#.","...#.","...#.","#..#.","#..#.",".##.."],
+  K:["#...#","#..#.","#.#..","##...","#.#..","#..#.","#...#"],
+  L:["#....","#....","#....","#....","#....","#....","#####"],
+  M:["#...#","##.##","#.#.#","#.#.#","#...#","#...#","#...#"],
+  N:["#...#","##..#","#.#.#","#..##","#...#","#...#","#...#"],
+  O:[".###.","#...#","#...#","#...#","#...#","#...#",".###."],
+  P:["####.","#...#","#...#","####.","#....","#....","#...."],
+  Q:[".###.","#...#","#...#","#...#","#.#.#","#..#.",".##.#"],
+  R:["####.","#...#","#...#","####.","#.#..","#..#.","#...#"],
+  S:[".####","#....","#....",".###.","....#","....#","####."],
+  T:["#####","..#..","..#..","..#..","..#..","..#..","..#.."],
+  U:["#...#","#...#","#...#","#...#","#...#","#...#",".###."],
+  V:["#...#","#...#","#...#","#...#","#...#",".#.#.","..#.."],
+  W:["#...#","#...#","#...#","#.#.#","#.#.#","##.##","#...#"],
+  X:["#...#","#...#",".#.#.","..#..",".#.#.","#...#","#...#"],
+  Y:["#...#","#...#",".#.#.","..#..","..#..","..#..","..#.."],
+  Z:["#####","....#","...#.","..#..",".#...","#....","#####"],
+  "?":[".###.","#...#","....#","..##.","..#..",".....","..#.."],
+  "!":["#","#","#","#","#",".","#"],
+  ".":[".",".",".",".",".",".","#"],
+  "-":["....","....","....","####","....","....","...."],
+  " ":["...","...","...","...","...","...","..."],
+};
+const BEVEL = ["#b4f6ff","#b4f6ff","#6fe3f0","#2ec4d6","#2ec4d6","#2399ae","#1b7f95"];
+const WHITE = ["#ffffff","#ffffff","#f1efff","#e4e1f7","#e4e1f7","#cfcbe6","#b3aed0"];
+
+function pixelText(str, s, colors = BEVEL) {
+  const cols = [];
+  for (const ch of str.toUpperCase()) { const g = FONT[ch] || FONT["?"]; cols.push(g, null); }
+  const w = cols.reduce((n, g) => n + (g ? g[0].length : 1), 0);
+  const c = document.createElement("canvas");
+  c.width = (w + 1) * s; c.height = 8 * s;
+  const x2 = c.getContext("2d");
+  for (const pass of ["shadow", "face"]) {
+    let x = 0;
+    for (const g of cols) {
+      if (!g) { x += 1; continue; }
+      g.forEach((row, y) => [...row].forEach((p, i) => {
+        if (p !== "#") return;
+        if (pass === "shadow") { x2.fillStyle = "rgba(0,0,0,.55)"; x2.fillRect((x + i) * s + s * .6, y * s + s * .6, s, s); }
+        else { x2.fillStyle = colors[y]; x2.fillRect((x + i) * s, y * s, s, s); }
+      }));
+      x += g[0].length;
+    }
+  }
+  return c;
+}
+
+// ---------- sprites (original) ----------
+const SPR = {
+  ingot: {pal:{a:"#e9e9f0",b:"#bdbdc8",c:"#8a8a96"}, rows:[
+    "....aaaa..","..aaabbbb.","aaabbbbbbc","bbbbbbbccc",".cccccccc."]},
+  stick: {pal:{h:"#a8743a",d:"#7a5126"}, rows:[
+    "........hd",".......hd.","......hd..",".....hd...","....hd....","...hd.....","..hd......",".hd.......","hd........"]},
+  pick: {pal:{h:"#8a5a32",i:"#cfd6e6",I:"#8e96aa"}, rows:[
+    ".iiiii...",".iIIIIi..","....hIi..","...h..i..","..h......",".h.......","h........"]},
+  chest: {pal:{k:"#2a1a0e",b:"#a8743a",d:"#7a5126",l:"#e6c35c"}, rows:[
+    "kkkkkkkkkkkk","kbbbbbbbbbbk","kbbbbbbbbbbk","kddddddddddk","kkkkkllkkkkk","kbbbbllbbbbk",
+    "kbbbbbbbbbbk","kbbbbbbbbbbk","kbbbbbbbbbbk","kddddddddddk","kkkkkkkkkkkk"]},
+  furnace: {pal:{s:"#6f6f7a",S:"#8c8c98",k:"#1c1b22",o:"#ff8a2a",y:"#ffd35a"}, rows:[
+    "ssssssssssss","sSSSSSSSSSSs","sSkkkkkkkkSs","sSkkkkkkkkSs","sSSSSSSSSSSs","ssssssssssss",
+    "sSkkkkkkkkSs","sSkoyoyoykSs","sSkooooookSs","sSSSSSSSSSSs","ssssssssssss"]},
+  coal: {pal:{k:"#1e1e24",g:"#3c3c46",h:"#6a6a78"}, rows:[
+    "..kkk...",".kghgk..","kghggkk.","kgggghk.","kkggggk.",".kkgkk..","..kkk..."]},
+  diamond: {pal:{w:"#e6fdff",c:"#2ec4d6",d:"#1b8aa0"}, rows:[
+    "..www..",".wcccc.","wcccccd","wcccccd",".cccdd.","..cdd..","...d..."]},
+};
+function sprite(name, s) {
+  const {pal, rows} = SPR[name];
+  const c = document.createElement("canvas");
+  c.width = rows[0].length * s; c.height = rows.length * s;
+  const x = c.getContext("2d");
+  rows.forEach((r, y) => [...r].forEach((p, i) => { if (pal[p]) { x.fillStyle = pal[p]; x.fillRect(i * s, y * s, s, s); } }));
+  return c;
+}
+
+// ---------- helpers ----------
+// Compact assets render at device scale 2; half() shows a canvas at half its pixel size so it stays crisp.
+function half(c) { c.style.width = c.width / 2 + "px"; c.style.height = c.height / 2 + "px"; return c; }
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === "style" ? (e.style.cssText = v) : e.setAttribute(k, v);
+  for (const k of kids) e.append(k);
+  return e;
+}
+function iconImg(px) { return el("img", {class: "icon", src: "../icon/icon_512.png", width: px, height: px}); }
+function slot(spr, s, cls) { return el("div", {class: "slot " + (cls || "")}, spr ? sprite(spr, s) : ""); }
+
+const PANELS = {
+  recipe: () => el("div", {class: "panel"},
+    el("div", {class: "search"}, "@minecraft", el("i", {}, "pickaxe")),
+    el("div", {class: "craft"},
+      el("div", {class: "grid3"}, ...["ingot","ingot","ingot",null,"stick",null,null,"stick",null].map(k => slot(k, 3))),
+      el("div", {class: "arrow"}),
+      slot("pick", 5, "out")),
+    el("div", {class: "stat"}, "Crafting table  ", el("b", {}, "You can make this"))),
+  blueprint: () => el("div", {class: "panel", style: "min-width:300px"},
+    el("div", {class: "stat", style: "font-size:20px;color:var(--text)"}, "Master Blueprint: ", el("b", {}, "Pickaxe")),
+    el("div", {class: "craft", style: "gap:8px"}, slot("ingot", 3), slot("stick", 3), slot("coal", 4), slot("furnace", 3)),
+    el("div", {class: "bar"}, el("i", {style: "width:60%"}), el("span", {}, "60% done"))),
+  browser: () => el("div", {class: "panel"},
+    el("div", {class: "search"}, "#planks", el("i", {}, " $fuel")),
+    el("div", {class: "grid3", style: "grid-template-columns:repeat(4,44px)"},
+      ...["chest","furnace","coal","ingot","diamond","pick","stick","coal"].map(k => slot(k, 3)))),
+};
+
+// ---------- assets ----------
+const ASSETS = {
+  banner: [800, 150, (r) => {
+    r.style.cssText += "display:flex;align-items:center;gap:24px;padding:0 28px";
+    r.append(iconImg(104));
+    r.append(el("div", {style: "display:flex;flex-direction:column;align-items:flex-start;gap:11px;flex:1"},
+      half(pixelText("Barely enough items", 7)),
+      el("div", {class: "tag", style: "font-size:16px"}, "A fast, minimal item and recipe viewer. ", el("b", {}, "Just enough.")),
+      el("div", {class: "meta", style: "gap:6px"},
+        el("span", {class: "pill on", style: "font-size:11px;padding:3px 9px"}, "Forge + NeoForge"),
+        el("span", {class: "pill", style: "font-size:11px;padding:3px 9px"}, "1.20.1, 1.21.1, 26.1.2"),
+        el("span", {class: "pill", style: "font-size:11px;padding:3px 9px"}, "Plugin API"))));
+    const p = PANELS.recipe(); p.style.cssText += ";zoom:.5;transform:rotate(-2deg)"; r.append(p);
+  }],
+  social: [1280, 640, (r) => {
+    r.style.cssText += "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center";
+    r.append(iconImg(220));
+    r.append(pixelText("Barely enough items", 7));
+    r.append(el("div", {class: "tag"}, "Find any item. See how to make it."));
+  }],
+  features: [1920, 1080, (r) => {
+    r.style.cssText += "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 90px;gap:70px";
+    r.append(el("div", {style: "display:flex;align-items:center;gap:36px"}, iconImg(140),
+      el("div", {style: "display:flex;flex-direction:column;gap:16px"}, pixelText("Barely enough items", 7),
+        el("div", {class: "tag"}, "Search every item, read every recipe, plan every craft"))));
+    const items = [
+      ["browser", "Item browser", "Searches in the background: @mod #tag $tooltip -exclude"],
+      ["recipe", "Recipe popup", "Grouped by station, with one-click fill from your inventory"],
+      ["blueprint", "Master Blueprint", "A nested crafting plan with a percent-done HUD"],
+    ];
+    const grid = el("div", {style: "zoom:1.3;display:grid;grid-template-columns:repeat(3,auto);gap:50px 70px;justify-content:center;align-items:start"});
+    for (const [k, t, d] of items) grid.append(el("div", {style: "max-width:300px"}, PANELS[k](), el("div", {class: "cap"}, el("b", {}, t), d)));
+    r.append(grid);
+    r.append(el("div", {class: "meta"}, el("span", {class: "pill on"}, "Forge + NeoForge"), el("span", {class: "pill"}, "Dark, light and datapack themes"),
+      el("span", {class: "pill"}, "Plugin API"), el("span", {class: "pill"}, "MIT license")));
+  }],
+};
+for (const [k, label] of Object.entries({features: "Features", players: "For players", authors: "For mod authors", install: "Install", keys: "Keys", config: "Settings", faq: "FAQ"})) {
+  ASSETS["h_" + k] = [800, 46, (r) => {
+    r.style.cssText += "display:flex;align-items:center;gap:14px;padding:0 16px;border-top:2px solid var(--cy)";
+    r.append(iconImg(30));
+    r.append(half(pixelText(label, 5)));
+  }];
+}
+
+const name = location.hash.slice(1) || "banner";
+const [w, h, build] = ASSETS[name];
+const root = document.getElementById("root");
+root.className = "stage";
+root.style.cssText = `width:${w}px;height:${h}px`;
+build(root);
+window.ASSET_NAMES = Object.keys(ASSETS);
+</script>
+</body>
+</html>
