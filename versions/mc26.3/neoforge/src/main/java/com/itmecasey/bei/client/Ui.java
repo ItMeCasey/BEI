@@ -1,10 +1,10 @@
 package com.itmecasey.bei.client;
 
 import com.itmecasey.bei.BeiConfig;
+import com.mojang.datafixers.util.Either;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -15,6 +15,7 @@ import net.neoforged.neoforge.client.ClientHooks;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
@@ -242,17 +243,24 @@ public final class Ui {
      * are left out, because BEI draws the lines itself.
      */
     private static List<ClientTooltipComponent> extras(GuiGraphicsExtractor g, Font font, ItemStack stack, List<Component> lines) {
-        Optional<TooltipComponent> image = stack.getTooltipImage();
+        List<Either<FormattedText, TooltipComponent>> elements = TooltipLines.elements(lines, stack.getTooltipImage());
         List<ClientTooltipComponent> extras = new ArrayList<>();
         try {
-            for (ClientTooltipComponent component : ClientHooks.gatherTooltipComponents(stack, new ArrayList<>(lines), image,
-                    0, g.guiWidth(), g.guiHeight(), font)) {
+            for (ClientTooltipComponent component : ClientHooks.gatherTooltipComponentsFromElements(stack, elements, 0,
+                    g.guiWidth(), g.guiHeight(), font)) {
                 if (!(component instanceof ClientTextTooltip)) {
                     extras.add(component);
                 }
             }
         } catch (RuntimeException e) {
             // a mod's tooltip code must not break the browser; show the text alone
+            return List.of();
+        }
+        // a mod may have removed lines its component repeats (a food bar replacing the hunger text); keep them removed
+        List<Component> kept = TooltipLines.keptLines(elements);
+        if (!kept.isEmpty()) {
+            lines.clear();
+            lines.addAll(kept);
         }
         return extras;
     }

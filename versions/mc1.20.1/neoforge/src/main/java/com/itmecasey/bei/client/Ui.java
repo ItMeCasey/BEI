@@ -1,10 +1,10 @@
 package com.itmecasey.bei.client;
 
 import com.itmecasey.bei.BeiConfig;
+import com.mojang.datafixers.util.Either;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -12,9 +12,13 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraftforge.client.ForgeHooksClient;
+import net.minecraftforge.client.event.RenderTooltipEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.common.MinecraftForge;
 import com.itmecasey.bei.client.Draw;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
@@ -262,23 +266,45 @@ public final class Ui {
         box(g, font, lines, extras, stack, rarityColor, rarity != null ? rarityColor : text(), mx, my);
     }
 
+    /** Where the gather event's final element list is copied while {@link #extras} runs (this game version has no hook that takes the list). */
+    private static final ThreadLocal<List<Either<FormattedText, TooltipComponent>>> GATHERED = new ThreadLocal<>();
+
+    static {
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, true, (RenderTooltipEvent.GatherComponents event) -> {
+            List<Either<FormattedText, TooltipComponent>> into = GATHERED.get();
+            if (into != null && !event.isCanceled()) {
+                into.addAll(event.getTooltipElements());
+            }
+        });
+    }
+
     /**
      * The graphical parts of an item's tooltip: the image the item supplies (a bundle's contents, a
      * map) and any component a mod adds while the game gathers the tooltip. The text components
      * are left out, because BEI draws the lines itself.
      */
     private static List<ClientTooltipComponent> extras(Draw g, Font font, ItemStack stack, List<Component> lines) {
-        Optional<TooltipComponent> image = stack.getTooltipImage();
         List<ClientTooltipComponent> extras = new ArrayList<>();
+        List<Either<FormattedText, TooltipComponent>> elements = new ArrayList<>();
+        GATHERED.set(elements);
         try {
-            for (ClientTooltipComponent component : ForgeHooksClient.gatherTooltipComponents(stack, new ArrayList<>(lines), image,
-                    0, g.guiWidth(), g.guiHeight(), font)) {
+            for (ClientTooltipComponent component : ForgeHooksClient.gatherTooltipComponents(stack, new ArrayList<>(lines),
+                    stack.getTooltipImage(), 0, g.guiWidth(), g.guiHeight(), font)) {
                 if (!(component instanceof ClientTextTooltip)) {
                     extras.add(component);
                 }
             }
         } catch (RuntimeException e) {
             // a mod's tooltip code must not break the browser; show the text alone
+            return List.of();
+        } finally {
+            GATHERED.remove();
+        }
+        // a mod may have removed lines its component repeats (a food bar replacing the hunger text); keep them removed
+        List<Component> kept = TooltipLines.keptLines(elements);
+        if (!kept.isEmpty()) {
+            lines.clear();
+            lines.addAll(kept);
         }
         return extras;
     }
