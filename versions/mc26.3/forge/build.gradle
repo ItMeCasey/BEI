@@ -1,0 +1,93 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'eclipse'
+    id 'net.minecraftforge.gradle' version '[7.0.17,8)'
+}
+
+version = mod_version
+
+// Jar name: smwti-forge-<minecraft version>-<mod version>
+base {
+    archivesName = 'bei-forge-26.3'
+}
+group = mod_group_id
+
+// Mojang ships Java 25 to end users in 26.1+, so the mod targets Java 25.
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+minecraft {
+    runs {
+        configureEach {
+            workingDir = layout.projectDirectory.dir('run')
+
+            systemProperty 'eventbus.api.strictRuntimeChecks', 'true'
+            // The example plugin (and only it) switches on for development runs.
+            systemProperty 'bei.examples', 'true'
+        }
+
+        register('client')
+
+        register('server') {
+            args '--nogui'
+        }
+    }
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
+    annotationProcessor 'net.minecraftforge:eventbus-validator:7.0.5'
+
+    // Unit tests for the parts that do not need the game running.
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// mods.toml and pack.mcmeta are templates: this fills in their ${} values from gradle.properties
+// (a missing one is an error) and adds the result to the jar's resources.
+var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from 'src/main/templates'
+    into 'build/generated/sources/modMetadata'
+}
+sourceSets.main.resources.srcDir generateModMetadata
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+
+
+// The public API on its own, for mods that add BEI plugins to compile against. It holds only the
+// com.itmecasey.bei.api package, so a mod never sees BEI's internals.
+tasks.register('apiJar', Jar) {
+    archiveClassifier = 'api'
+    from(sourceSets.main.output) {
+        include 'com/itmecasey/bei/api/**'
+    }
+}

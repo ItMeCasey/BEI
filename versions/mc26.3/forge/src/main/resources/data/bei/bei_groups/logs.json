@@ -1,0 +1,5 @@
+{
+  "name": "Logs",
+  "icon": "minecraft:oak_log",
+  "items": ["#minecraft:logs"]
+}

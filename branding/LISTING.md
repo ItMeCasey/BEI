@@ -10,7 +10,7 @@
 | Main category | Utility & QoL |
 | More categories | Map and Information, API and Library |
 | Loaders | Forge and NeoForge (set on each uploaded file) |
-| Game versions | 26.1.2, 1.21.1, 1.20.1 (set on each uploaded file) |
+| Game versions | 26.3, 26.2, 26.1.2, 1.21.1, 1.20.1 (set on each uploaded file) |
 | Environment | Client, server optional |
 | License | MIT |
 | Source / Issues | https://github.com/ItMeCasey/BEI |

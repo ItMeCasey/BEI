@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.2 (Forge 26.2, NeoForge 26.2, Forge 26.3, NeoForge 26.3)
+
+New builds for Minecraft 26.2 and 26.3. Each builds, loads, joins a dev server and indexes its recipes (about 1570 on 26.2 and 1750 on 26.3 in a vanilla world); none has been checked on screen yet. The older builds are unchanged and keep 2026.11.1.
+
+- 26.3 reads input through SDL instead of GLFW, tells fuel by the `COOKING_FUEL` item component, and the NeoForge build reads the container screen's bounds by reflection. See `docs/PORTING.md`.
+- The dev-only screenshot tour is not part of these builds.
+
 ## 2026.11.1 (NeoForge 26.1.2, NeoForge 1.21.1, Forge 1.20.1, NeoForge 1.20.1)
 
 Ports of the release below. Each builds, loads, joins a server and indexes recipes (NeoForge 1.20.1 was only tried in singleplayer, because its dev server crashes in the development environment); none has been checked on screen yet.

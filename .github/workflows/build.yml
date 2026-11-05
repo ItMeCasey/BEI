@@ -14,6 +14,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { dir: mc26.3/forge, id: mc26.3-forge, java: 25 }
+          - { dir: mc26.3/neoforge, id: mc26.3-neoforge, java: 25 }
+          - { dir: mc26.2/forge, id: mc26.2-forge, java: 25 }
+          - { dir: mc26.2/neoforge, id: mc26.2-neoforge, java: 25 }
           - { dir: mc26.1.2/forge, id: mc26.1.2-forge, java: 25 }
           - { dir: mc26.1.2/neoforge, id: mc26.1.2-neoforge, java: 25 }
           - { dir: mc1.21.1/forge, id: mc1.21.1-forge, java: 21 }

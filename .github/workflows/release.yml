@@ -1,7 +1,8 @@
 name: Release
 
-# Pushing a version tag (for example 2026.11.2) builds every version and loader and, only if all of
-# them build, uploads each jar to CurseForge and attaches them all to a GitHub release.
+# Pushing a version tag (for example 2026.11.2) builds the versions and loaders whose mod_version equals
+# the tag and, only if all of them build, uploads each jar to CurseForge and attaches them to a GitHub release.
+# Builds with another mod_version are skipped, so unchanged builds are never rebuilt or uploaded twice.
 #
 # One-time setup: add a repository secret named CURSEFORGE_TOKEN (a CurseForge API token from your
 # account's API tokens page). Nothing is uploaded without it.
@@ -13,36 +14,72 @@ on:
       tag:
         description: 'Release tag to build (must match mod_version)'
         required: true
+      ref:
+        description: 'Branch, tag or commit to check out (a dry run before the tag exists); defaults to the tag'
+        required: false
+        default: ''
+      publish:
+        description: 'Upload to CurseForge and create the GitHub release (leave off for a dry run that only builds)'
+        type: boolean
+        default: false
 
 env:
   CURSEFORGE_PROJECT: '1783910'
 
 jobs:
-  build:
-    name: Build ${{ matrix.dir }}
+  # Only builds whose own mod_version equals the tag are built and uploaded; the rest are skipped with a
+  # log line, so an unchanged build is never re-uploaded. The run fails when no build matches the tag.
+  plan:
+    name: Pick the builds for this tag
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - { dir: mc26.1.2/forge, java: 25, mc: '26.1.2', loader: forge }
-          - { dir: mc26.1.2/neoforge, java: 25, mc: '26.1.2', loader: neoforge }
-          - { dir: mc1.21.1/forge, java: 21, mc: '1.21.1', loader: forge }
-          - { dir: mc1.21.1/neoforge, java: 21, mc: '1.21.1', loader: neoforge }
-          - { dir: mc1.20.1/forge, java: 17, mc: '1.20.1', loader: forge }
-          - { dir: mc1.20.1/neoforge, java: 17, mc: '1.20.1', loader: neoforge }
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
-      - name: The tag must match the mod version
+          ref: ${{ inputs.ref || inputs.tag || github.ref }}
+      - id: pick
         run: |
           tag="${{ inputs.tag || github.ref_name }}"
-          version=$(grep '^mod_version=' versions/${{ matrix.dir }}/gradle.properties | cut -d= -f2)
-          if [ "$tag" != "$version" ]; then
-            echo "Tag $tag does not match mod_version $version in versions/${{ matrix.dir }}/gradle.properties" >&2
+          all='[
+            {"dir":"mc26.3/forge","java":25,"mc":"26.3","loader":"forge"},
+            {"dir":"mc26.3/neoforge","java":25,"mc":"26.3","loader":"neoforge"},
+            {"dir":"mc26.2/forge","java":25,"mc":"26.2","loader":"forge"},
+            {"dir":"mc26.2/neoforge","java":25,"mc":"26.2","loader":"neoforge"},
+            {"dir":"mc26.1.2/forge","java":25,"mc":"26.1.2","loader":"forge"},
+            {"dir":"mc26.1.2/neoforge","java":25,"mc":"26.1.2","loader":"neoforge"},
+            {"dir":"mc1.21.1/forge","java":21,"mc":"1.21.1","loader":"forge"},
+            {"dir":"mc1.21.1/neoforge","java":21,"mc":"1.21.1","loader":"neoforge"},
+            {"dir":"mc1.20.1/forge","java":17,"mc":"1.20.1","loader":"forge"},
+            {"dir":"mc1.20.1/neoforge","java":17,"mc":"1.20.1","loader":"neoforge"}
+          ]'
+          picked='[]'
+          for dir in $(echo "$all" | jq -r '.[].dir'); do
+            version=$(grep '^mod_version=' "versions/$dir/gradle.properties" | cut -d= -f2)
+            if [ "$version" = "$tag" ]; then
+              echo "Including $dir (mod_version $version)"
+              picked=$(echo "$picked" | jq -c --argjson e "$(echo "$all" | jq -c --arg d "$dir" '.[] | select(.dir == $d)')" '. + [$e]')
+            else
+              echo "Skipping $dir: mod_version $version is not the tag $tag, so it is neither built nor uploaded"
+            fi
+          done
+          if [ "$picked" = "[]" ]; then
+            echo "No build has mod_version $tag" >&2
             exit 1
           fi
+          echo "matrix={\"include\":$picked}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.dir }}
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || inputs.tag || github.ref }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -62,21 +99,16 @@ jobs:
             !versions/${{ matrix.dir }}/build/libs/*-sources.jar
 
   publish:
-    name: Publish
-    needs: build
+    name: Publish ${{ matrix.dir }}
+    needs: [plan, build]
+    # A tag push always publishes; a manual run publishes only when "publish" is ticked.
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
     permissions:
       contents: write
     strategy:
       max-parallel: 1
-      matrix:
-        include:
-          - { mc: '26.1.2', loader: forge, java: '25' }
-          - { mc: '26.1.2', loader: neoforge, java: '25' }
-          - { mc: '1.21.1', loader: forge, java: '21' }
-          - { mc: '1.21.1', loader: neoforge, java: '21' }
-          - { mc: '1.20.1', loader: forge, java: '17' }
-          - { mc: '1.20.1', loader: neoforge, java: '17' }
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -87,7 +119,7 @@ jobs:
         with:
           curseforge-id: ${{ env.CURSEFORGE_PROJECT }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          files: dist/*.jar
+          files: dist/**/*.jar
           name: Barely Enough Items ${{ inputs.tag || github.ref_name }} for ${{ matrix.loader }} ${{ matrix.mc }}
           version: ${{ inputs.tag || github.ref_name }}
           version-type: release
@@ -99,11 +131,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.mc }}-${{ matrix.loader }}
-          path: dist/*.jar
+          path: dist/**/*.jar
 
   github-release:
     name: GitHub release
     needs: publish
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -120,4 +153,4 @@ jobs:
           body: |
             Barely Enough Items ${{ inputs.tag || github.ref_name }}. Pick the jar for your Minecraft version and loader.
             See the [changelog](https://github.com/ItMeCasey/BEI/blob/main/CHANGELOG.md) and the [wiki](https://itmecasey.com/wiki/bei/).
-          files: dist/*.jar
+          files: dist/**/*.jar

@@ -1,0 +1,5 @@
+{
+  "name": "Wool",
+  "icon": "minecraft:white_wool",
+  "items": ["#minecraft:wool"]
+}

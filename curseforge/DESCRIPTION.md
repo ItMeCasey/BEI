@@ -36,6 +36,8 @@ Add your own recipe categories, recipes and card looks with a **plugin**: mark a
 
 | Minecraft | Loaders |
 |---|---|
+| 26.3 | Forge, NeoForge |
+| 26.2 | Forge, NeoForge |
 | 26.1.2 | Forge, NeoForge |
 | 1.21.1 | Forge, NeoForge |
 | 1.20.1 | Forge, NeoForge |
@@ -44,7 +46,7 @@ Pick the file that matches your Minecraft version and loader, and put it in your
 
 ![FAQ](https://raw.githubusercontent.com/ItMeCasey/BEI/main/branding/banners/h_faq.png)
 
-**Does it need to be on the server?** Browsing and search work on the client alone. On 26.1.2 the server must also have BEI for recipes to show, because the game only gives a client the recipes it has unlocked. Datapack themes, groups, hidden items and cheat mode need BEI on the server in every version. On 1.21.1 and 1.20.1 recipes come with the game.
+**Does it need to be on the server?** Browsing and search work on the client alone. On 26.1.2, 26.2 and 26.3 the server must also have BEI for recipes to show, because the game only gives a client the recipes it has unlocked. Datapack themes, groups, hidden items and cheat mode need BEI on the server in every version. On 1.21.1 and 1.20.1 recipes come with the game.
 
 **Does it work with JEI?** No. BEI is its own viewer and has its own plugin API.
 

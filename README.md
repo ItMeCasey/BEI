@@ -19,6 +19,10 @@ A minimalist, fast item and recipe viewer for Minecraft (Forge and NeoForge). Th
 
 | Minecraft | Loader | Java | Folder |
 |---|---|---|---|
+| 26.3 | Forge | 25 | `versions/mc26.3/forge` |
+| 26.3 | NeoForge | 25 | `versions/mc26.3/neoforge` |
+| 26.2 | Forge | 25 | `versions/mc26.2/forge` |
+| 26.2 | NeoForge | 25 | `versions/mc26.2/neoforge` |
 | 26.1.2 | Forge | 25 | `versions/mc26.1.2/forge` |
 | 26.1.2 | NeoForge | 25 | `versions/mc26.1.2/neoforge` |
 | 1.21.1 | Forge | 21 | `versions/mc1.21.1/forge` |
@@ -26,9 +30,9 @@ A minimalist, fast item and recipe viewer for Minecraft (Forge and NeoForge). Th
 | 1.20.1 | Forge | 17 | `versions/mc1.20.1/forge` |
 | 1.20.1 | NeoForge | 17 | `versions/mc1.20.1/neoforge` |
 
-The two Forge builds for 26.1.2 and 1.21.1 have been played and checked on screen. The other four build, load, join a server (NeoForge 1.20.1: singleplayer only) and index recipes; their screens have not been checked in play yet.
+The two Forge builds for 26.1.2 and 1.21.1 have been played and checked on screen. The other eight build, load, join a server (NeoForge 1.20.1: singleplayer only) and index recipes; their screens have not been checked in play yet.
 
-BEI works on the client alone for browsing and search. On 26.1.2 the server must also have BEI for recipes to show (the game only gives a client the recipes it has unlocked); datapack themes, groups and hidden items, and cheat mode, need BEI on the server in both versions. On 1.21.1 and 1.20.1 recipes come with the game.
+BEI works on the client alone for browsing and search. On 26.1.2, 26.2 and 26.3 the server must also have BEI for recipes to show (the game only gives a client the recipes it has unlocked); datapack themes, groups and hidden items, and cheat mode, need BEI on the server in both versions. On 1.21.1 and 1.20.1 recipes come with the game.
 
 See [docs/PORTING.md](docs/PORTING.md) for what differs between the versions, and the [wiki](https://itmecasey.com/wiki/bei/) for guides.
 

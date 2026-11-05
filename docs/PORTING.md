@@ -24,3 +24,20 @@ Everything else (index, search, groups, themes, blueprint, project, cheat mode, 
 - **1.20.1 (Forge and NeoForge)** is derived from the 1.21.1 tree. There are no data components and no `RecipeHolder` (recipes are `Recipe` objects with `getId()`), `ResourceLocation` is built with its constructor, tooltips come from `getTooltipLines(Player, TooltipFlag)`, and the HUD registers with `RegisterGuiOverlaysEvent`. Networking is Forge's classic `SimpleChannel`, kept optional.
 - NeoForge 1.20.1 still uses the `net.minecraftforge` package names, so its tree differs from Forge 1.20.1 only in build files and a few calls.
 - The 1.20.1 builds need Java 17 for Gradle; a newer default JDK fails.
+
+## 26.2 and 26.3
+
+Both start as copies of the 26.1.2 trees (`versions/mc26.2` and `versions/mc26.3`, Forge and NeoForge each). The dev-only screenshot tour (`ShotTour`) is not carried over. What changed:
+
+| Area | 26.1.2 | 26.2 | 26.3 |
+|---|---|---|---|
+| Current screen | `minecraft.screen`, `setScreen` | `minecraft.gui.screen()`, `setScreenAndShow` | same as 26.2 |
+| Action-bar message | `gui.setOverlayMessage` | `gui.hud.setOverlayMessage` | same as 26.2 |
+| Hide GUI flag | `options.hideGui` | `gui.hud.isHidden()` | same as 26.2 |
+| Dye items | `Items.RED_DYE` | `Items.DYE.pick(DyeColor.RED)` | same as 26.2 |
+| Translation check | `I18n.exists` | `Language.getInstance().has` | same as 26.2 |
+| Rarity color | `ChatFormatting.getColor()` | `Style.EMPTY.applyFormat(fmt).getColor()` | same as 26.2 |
+| Key codes | GLFW | GLFW | SDL: `InputConstants.KEY_*` and `MOD_*`, key mappings use `InputConstants.Type.KEYBOARD` |
+| Mouse button state | GLFW call | GLFW call | `mouseHandler.isLeftPressed()` |
+| Is an item fuel | `level.fuelValues()` | same as 26.1.2 | the `COOKING_FUEL` item component |
+| Container screen bounds | `getGuiLeft()`, `getXSize()`, `getSlotUnderMouse()` | same | Forge keeps them; NeoForge 26.3 does not, so `Ui` reads the protected fields by reflection |
