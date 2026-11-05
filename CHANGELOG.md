@@ -5,7 +5,7 @@
 - Item tooltips no longer repeat text that a mod's graphic replaces. When a mod removes lines while the game gathers a tooltip (OrangePeel removes its "Hunger +N Saturation +N" line because its shank icons show the same thing), BEI now leaves those lines out and draws the graphic once. Lines the mod keeps still show.
 - Checked in the real item browser, recipe popup and project planner on all ten builds (hovering entries with the game's own mouse handling, OrangePeel 2026.11.1 loaded on every build that has a jar for it): the duplicate "Hunger / Saturation" line is gone and the shank rows draw once, not clipped. Minecraft 1.20.1 has no OrangePeel build, so there it was checked with vanilla tooltips only. A unit test covers the list handling.
 
-## 2026.11.3 (all ten builds)
+## 2026.11.3 (never uploaded; these changes ship in 2026.11.4)
 
 - Item tooltips now show the graphical parts the game draws in its own tooltips, not only text: a bundle's contents preview, and any component a mod gives an item (such as a food bar) through its tooltip image or the loader's tooltip component events. This works in the item browser, recipe views and the project planner. The image sits under the item's name, above the other lines. Text-only tooltips look exactly as before, and lines other mods add to the tooltip still show.
 - Checked with a bundle in a client on every build except Forge 1.20.1, whose Gradle run tasks do not start here (NeoForge 1.20.1 has the same code and was checked). Components that replace the text lines of a tooltip are not applied; only non-text components are drawn.
