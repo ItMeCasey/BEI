@@ -3,7 +3,7 @@
 ## 2026.11.4 (all ten builds)
 
 - Item tooltips no longer repeat text that a mod's graphic replaces. When a mod removes lines while the game gathers a tooltip (OrangePeel removes its "Hunger +N Saturation +N" line because its shank icons show the same thing), BEI now leaves those lines out and draws the graphic once. Lines the mod keeps still show.
-- Checked on NeoForge 1.21.1 with OrangePeel 2026.11.1: the duplicate "Hunger / Saturation" line is gone and the shank rows and a bundle's contents draw once. The other nine builds compile with the same change but were not run on screen yet. A unit test covers the list handling.
+- Checked in the real item browser, recipe popup and project planner on all ten builds (hovering entries with the game's own mouse handling, OrangePeel 2026.11.1 loaded on every build that has a jar for it): the duplicate "Hunger / Saturation" line is gone and the shank rows draw once, not clipped. Minecraft 1.20.1 has no OrangePeel build, so there it was checked with vanilla tooltips only. A unit test covers the list handling.
 
 ## 2026.11.3 (all ten builds)
 
