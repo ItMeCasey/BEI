@@ -2,6 +2,7 @@ package com.itmecasey.bei.client;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
@@ -63,6 +64,15 @@ public final class Draw {
         graphics.pose().translate(0, 0, 200);
         graphics.drawString(font, text, x, y, color, shadow);
         graphics.pose().popPose();
+    }
+
+    /** Draws one of the game's tooltip components (a bundle's contents, a mod's food bar) at the given spot. */
+    public void component(Font font, ClientTooltipComponent component, int x, int y) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(0, 0, 200);
+        component.renderText(font, x, y, graphics.pose().last().pose(), graphics.bufferSource());
+        graphics.pose().popPose();
+        component.renderImage(font, x, y, graphics);
     }
 
     public void item(ItemStack stack, int x, int y) {

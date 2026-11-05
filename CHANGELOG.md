@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.3 (all ten builds)
+
+- Item tooltips now show the graphical parts the game draws in its own tooltips, not only text: a bundle's contents preview, and any component a mod gives an item (such as a food bar) through its tooltip image or the loader's tooltip component events. This works in the item browser, recipe views and the project planner. The image sits under the item's name, above the other lines. Text-only tooltips look exactly as before, and lines other mods add to the tooltip still show.
+- Checked with a bundle in a client on every build except Forge 1.20.1, whose Gradle run tasks do not start here (NeoForge 1.20.1 has the same code and was checked). Components that replace the text lines of a tooltip are not applied; only non-text components are drawn.
+
 ## 2026.11.2 (Forge 26.2, NeoForge 26.2, Forge 26.3, NeoForge 26.3)
 
 New builds for Minecraft 26.2 and 26.3. Each builds, loads, joins a dev server and indexes its recipes (about 1570 on 26.2 and 1750 on 26.3 in a vanilla world); none has been checked on screen yet. The older builds are unchanged and keep 2026.11.1.

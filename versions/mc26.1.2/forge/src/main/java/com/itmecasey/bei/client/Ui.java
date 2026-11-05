@@ -4,9 +4,14 @@ import com.itmecasey.bei.BeiConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -196,7 +201,7 @@ public final class Ui {
 
     /** A tooltip of plain lines, in the theme's colors. */
     public static void tip(GuiGraphicsExtractor g, Font font, List<Component> lines, int mx, int my) {
-        box(g, font, lines, null, border(), text(), mx, my);
+        box(g, font, lines, List.of(), null, border(), text(), mx, my);
     }
 
     /**
@@ -212,6 +217,7 @@ public final class Ui {
         boolean advanced = game.options.advancedItemTooltips;
         List<Component> lines = new ArrayList<>(stack.getTooltipLines(Item.TooltipContext.of(game.level), game.player,
                 advanced ? TooltipFlag.ADVANCED : TooltipFlag.NORMAL));
+        List<ClientTooltipComponent> extras = extras(g, font, stack, lines);
         // The game puts a blank line after the name; with the divider under the name it only looks like a gap.
         while (lines.size() > 1 && lines.get(1).getString().isEmpty()) {
             lines.remove(1);
@@ -228,7 +234,28 @@ public final class Ui {
             lines.set(0, lines.get(0).copy().withStyle(stack.getRarity().color()));
         }
         int rarityColor = rarity != null ? 0xFF000000 | rarity : border();
-        box(g, font, lines, stack, rarityColor, rarity != null ? rarityColor : text(), mx, my);
+        box(g, font, lines, extras, stack, rarityColor, rarity != null ? rarityColor : text(), mx, my);
+    }
+
+    /**
+     * The graphical parts of an item's tooltip: the image the item supplies (a bundle's contents, a
+     * map) and any component a mod adds while the game gathers the tooltip. The text components
+     * are left out, because BEI draws the lines itself.
+     */
+    private static List<ClientTooltipComponent> extras(GuiGraphicsExtractor g, Font font, ItemStack stack, List<Component> lines) {
+        Optional<TooltipComponent> image = stack.getTooltipImage();
+        List<ClientTooltipComponent> extras = new ArrayList<>();
+        try {
+            for (ClientTooltipComponent component : ForgeHooksClient.gatherTooltipComponents(stack, new ArrayList<>(lines), image,
+                    0, g.guiWidth(), g.guiHeight(), font)) {
+                if (!(component instanceof ClientTextTooltip)) {
+                    extras.add(component);
+                }
+            }
+        } catch (RuntimeException e) {
+            // a mod's tooltip code must not break the browser; show the text alone
+        }
+        return extras;
     }
 
     private static String modName(ItemStack stack) {
@@ -244,8 +271,8 @@ public final class Ui {
      * Draws a tooltip box next to the mouse. BEI draws its own because the game's deferred tooltip
      * is collected before mod render events run, so one queued from here would never appear.
      */
-    private static void box(GuiGraphicsExtractor g, Font font, List<Component> lines, @Nullable ItemStack icon,
-                            int borderColor, int nameColor, int mx, int my) {
+    private static void box(GuiGraphicsExtractor g, Font font, List<Component> lines, List<ClientTooltipComponent> extras,
+                            @Nullable ItemStack icon, int borderColor, int nameColor, int mx, int my) {
         if (lines.isEmpty()) {
             return;
         }
@@ -253,11 +280,19 @@ public final class Ui {
         for (int i = 0; i < lines.size(); i++) {
             width = Math.max(width, font.width(lines.get(i)) + (icon != null && i == 0 ? 22 : 0));
         }
+        int extraHeight = 0;
+        for (ClientTooltipComponent component : extras) {
+            width = Math.max(width, component.getWidth(font));
+            extraHeight += component.getHeight(font);
+        }
         int height;
         if (icon != null) {
             height = 16 + (lines.size() > 1 ? 6 + (lines.size() - 1) * 10 - 1 : 0) - (lines.size() > 1 ? 2 : 0);
+            if (extraHeight > 0) {
+                height += extraHeight + (lines.size() > 1 ? 0 : 6);
+            }
         } else {
-            height = lines.size() * 10 - 1;
+            height = lines.size() * 10 - 1 + extraHeight;
         }
         int x = mx + 12;
         int y = my - 12;
@@ -272,10 +307,15 @@ public final class Ui {
         if (icon != null) {
             g.item(icon, x, y);
             g.text(font, lines.get(0), x + 22, y + 4, nameColor, shadow());
-            if (lines.size() > 1) {
+            if (lines.size() > 1 || extraHeight > 0) {
                 g.fill(x, y + 19, x + width, y + 20, borderColor);
             }
             textY = y + 23;
+        }
+        for (ClientTooltipComponent component : extras) {
+            component.extractText(g, font, x, textY);
+            component.extractImage(font, x, textY, width, component.getHeight(font), g);
+            textY += component.getHeight(font);
         }
         for (int i = icon != null ? 1 : 0; i < lines.size(); i++) {
             g.text(font, lines.get(i), x, textY, text(), shadow());

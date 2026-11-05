@@ -7,7 +7,7 @@ A minimalist, fast item and recipe viewer for Minecraft (Forge and NeoForge). Th
 - Item browser: opens with every item, searches in the background (`@mod`, `#tag`, `$tooltip`, `-exclude`), category icons, scrollbar, and groups and hidden items from datapacks. The index builds off the render thread, so opening a screen never waits.
 - Recipe popup: recipes grouped by station (those you can make first), uses lookups, centered 3x3 crafting cards, `P` to make a recipe your project, and `+` to fill the crafting grid, furnace, stonecutter or smithing table from your inventory (Shift for a full stack).
 - Master Blueprint: a dependency tree for any item that checks your inventory (and optionally ender chest), shows the next craft or what to gather, with a percent-done HUD.
-- Themes: dark, light, and datapack themes; backdrop opacity; draggable windows; rarity-colored item tooltips.
+- Themes: dark, light, and datapack themes; backdrop opacity; draggable windows; rarity-colored item tooltips that include the game's graphical parts (a bundle's contents, a mod's food bar).
 - Cheat mode (Ctrl+click the gear): click items to hold or place them, with no commands. Needs creative mode, operator permission, or your own singleplayer world.
 - Plugin API for mods that add recipe types and recipe cards, and [ModJS](https://github.com/ItMeCasey/ModJS) script support.
 
