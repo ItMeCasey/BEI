@@ -49,7 +49,14 @@ public final class RecipeIndex {
         Map<Item, List<BeiRecipe>> out = new HashMap<>();
         Map<Item, List<BeiRecipe>> in = new HashMap<>();
         for (BeiRecipe recipe : recipes) {
-            index(recipe, out, in);
+            for (ItemStack output : recipe.outputs()) {
+                add(out, output.getItem(), recipe);
+            }
+            for (List<ItemStack> slot : recipe.inputs()) {
+                for (ItemStack input : slot) {
+                    add(in, input.getItem(), recipe);
+                }
+            }
         }
         byOutput = out;
         byInput = in;
