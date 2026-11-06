@@ -119,6 +119,8 @@ Group items under one browser cell, or hide items from the browser, with JSON fi
 
 A mod adds its own recipe categories, recipes and card looks with a class marked `@BeiPlugin`. BEI finds it by scanning mod classes, so the mod needs no call into BEI and works fine without BEI installed. Compile against `./gradlew apiJar`, which holds only the `com.itmecasey.bei.api` package.
 
+A plugin can also register an `IRecipeTransferHandler` from `registerTransfers`: BEI shows a plus button on the recipes of the screen that handler is for (enabled, dimmed with a reason, or hidden) and calls the handler on the client when it is clicked, with the Shift and Control state. BEI sends no packets.
+
 ```java
 @BeiPlugin("mymachines")            // optional: only load when this mod is installed
 public class MyPlugin implements IBeiPlugin {
