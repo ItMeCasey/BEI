@@ -50,6 +50,18 @@ public final class RecipeIndex {
         return byInput.getOrDefault(item, List.of());
     }
 
+    /** Replaces the index with these recipes, for tests and tools that have no recipe manager. */
+    public static void useRecipes(List<BeiRecipe> recipes) {
+        Map<Item, List<BeiRecipe>> out = new HashMap<>();
+        Map<Item, List<BeiRecipe>> in = new HashMap<>();
+        for (BeiRecipe recipe : recipes) {
+            index(recipe, out, in);
+        }
+        byOutput = out;
+        byInput = in;
+        count = recipes.size();
+    }
+
     /** Builds the index from plugin recipes alone, for joining a server that sends none; real recipes replace it when they arrive. */
     public static void buildLocal() {
         Thread thread = new Thread(() -> convert(List.of(), null), "BEI-recipes-local");

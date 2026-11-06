@@ -39,6 +39,12 @@ neoForge {
             sourceSet(sourceSets.main)
         }
     }
+
+    // The game's classes on the test classpath, so tests can use items and recipes.
+    unitTest {
+        enable()
+        testedMod = mods."${mod_id}"
+    }
 }
 
 dependencies {
