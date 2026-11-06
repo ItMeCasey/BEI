@@ -73,6 +73,34 @@ public final class BrowserPanel {
     // ---- layout ---------------------------------------------------------------------------------
 
     /** Works out where everything goes; called when the screen is set up or resized. */
+    private static final com.itmecasey.bei.plugin.SearchListeners SEARCH_LISTENERS = new com.itmecasey.bei.plugin.SearchListeners();
+
+    /** The listeners of the search text, for {@link SearchAccess}. */
+    static com.itmecasey.bei.plugin.SearchListeners searchListeners() {
+        return SEARCH_LISTENERS;
+    }
+
+    /** The text in the search box. */
+    static String searchText() {
+        return query;
+    }
+
+    /** Sets the search text from a plugin and refreshes the results; nothing happens if it is already that text. */
+    static void setSearchText(String text) {
+        String value = text == null ? "" : text;
+        if (value.equals(query)) {
+            return;
+        }
+        if (box != null) {
+            box.setValue(value);
+        } else {
+            query = value;
+            scroll = 0;
+            dirty = true;
+            SEARCH_LISTENERS.fire(value);
+        }
+    }
+
     public static void layout(AbstractContainerScreen<?> screen) {
         Font font = Minecraft.getInstance().font;
         compute(screen);
@@ -82,9 +110,13 @@ public final class BrowserPanel {
         box.setHint(Component.translatable("bei.search.hint"));
         box.setValue(query);
         box.setResponder(text -> {
+            boolean changed = !text.equals(query);
             query = text;
             scroll = 0;
             dirty = true;
+            if (changed) {
+                SEARCH_LISTENERS.fire(text);
+            }
         });
         dirty = true;
     }

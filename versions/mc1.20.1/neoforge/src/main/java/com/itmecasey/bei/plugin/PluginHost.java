@@ -78,6 +78,14 @@ public final class PluginHost {
                 Bei.LOGGER.warn("The BEI plugin {} failed to register its transfer handlers", plugin.getClass().getName(), e);
             }
         }
+        com.itmecasey.bei.client.SearchAccess search = new com.itmecasey.bei.client.SearchAccess();
+        for (IBeiPlugin plugin : plugins) {
+            try {
+                plugin.registerSearch(search);
+            } catch (RuntimeException | LinkageError e) {
+                Bei.LOGGER.warn("The BEI plugin {} failed to take the search access", plugin.getClass().getName(), e);
+            }
+        }
         Bei.LOGGER.info("Loaded {} BEI plugin(s) with {} recipe categories", plugins.size(), CATEGORIES.size());
     }
 

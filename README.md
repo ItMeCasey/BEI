@@ -121,6 +121,8 @@ A mod adds its own recipe categories, recipes and card looks with a class marked
 
 A plugin can also register an `IRecipeTransferHandler` from `registerTransfers`: BEI shows a plus button on the recipes of the screen that handler is for (enabled, dimmed with a reason, or hidden) and calls the handler on the client when it is clicked, with the Shift and Control state. BEI sends no packets.
 
+A plugin can also mirror BEI's search box: `registerSearch(ISearchAccess)` hands it an object with `getText`, `setText` (refreshes the results) and listeners for text changes.
+
 ```java
 @BeiPlugin("mymachines")            // optional: only load when this mod is installed
 public class MyPlugin implements IBeiPlugin {

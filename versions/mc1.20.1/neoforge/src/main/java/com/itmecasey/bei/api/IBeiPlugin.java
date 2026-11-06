@@ -23,4 +23,11 @@ public interface IBeiPlugin {
      */
     default void registerTransfers(ITransferRegistration registration) {
     }
+
+    /**
+     * Gives the plugin access to BEI's search box, once, with {@link #registerTransfers}. Keep the object to read or
+     * set the text or to listen for changes.
+     */
+    default void registerSearch(ISearchAccess search) {
+    }
 }
