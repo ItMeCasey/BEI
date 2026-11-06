@@ -31,6 +31,9 @@ public final class BeiConfig {
     private static final ForgeConfigSpec.BooleanValue ENDER_CHEST = BUILDER
             .comment("Count items in your ender chest as already owned when tracking a project.")
             .define("countEnderChest", false);
+    private static final ForgeConfigSpec.BooleanValue ITEM_VARIANTS = BUILDER
+            .comment("List variants of an item (potions, enchanted books, goat horns) as separate entries in the item browser.")
+            .define("itemVariants", true);
     private static final ForgeConfigSpec.EnumValue<CheatTarget> CHEAT_TARGET = BUILDER
             .comment("Where cheat mode puts clicked items: on the cursor or in the inventory.")
             .defineEnum("cheatTarget", CheatTarget.CURSOR);
@@ -119,6 +122,14 @@ public final class BeiConfig {
 
     public static void setCountEnderChest(boolean value) {
         set(ENDER_CHEST, value);
+    }
+
+    public static boolean itemVariants() {
+        return SPEC.isLoaded() && ITEM_VARIANTS.get();
+    }
+
+    public static void setItemVariants(boolean value) {
+        set(ITEM_VARIANTS, value);
     }
 
     public static CheatTarget cheatTarget() {

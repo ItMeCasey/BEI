@@ -1,5 +1,8 @@
 package com.itmecasey.bei.index;
 
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.CreativeModeTab;
+import com.itmecasey.bei.BeiConfig;
 import com.itmecasey.bei.Bei;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -48,12 +51,38 @@ public final class ItemIndex {
         int mine = generation.incrementAndGet();
         ready = false;
         tooltipCursor = 0;
-        Thread thread = new Thread(() -> build(mine), "BEI-index");
+        List<ItemStack> variants = collectVariants();
+        Thread thread = new Thread(() -> build(mine, variants), "BEI-index");
         thread.setDaemon(true);
         thread.start();
     }
 
-    private static void build(int mine) {
+    /**
+     * The variants of items (potions, enchanted books, goat horns...) the creative tabs list, as their own stacks.
+     * Needs the game's main thread and a world; empty when the setting is off or anything goes wrong.
+     */
+    private static List<ItemStack> collectVariants() {
+        Minecraft game = Minecraft.getInstance();
+        if (!BeiConfig.itemVariants() || game.level == null || game.player == null) {
+            return List.of();
+        }
+        try {
+            CreativeModeTabs.tryRebuildTabContents(game.player.connection.enabledFeatures(), false, game.level.registryAccess());
+            List<ItemStack> all = new ArrayList<>();
+            for (CreativeModeTab tab : CreativeModeTabs.allTabs()) {
+                if (tab.getType() == CreativeModeTab.Type.CATEGORY) {
+                    all.addAll(tab.getDisplayItems());
+                }
+            }
+            return VariantFilter.select(all, stack -> !stack.isEmpty() && !ItemStack.isSameItemSameComponents(stack, stack.getItem().getDefaultInstance()),
+                    stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()) + "|" + stack.getComponentsPatch()).stream().map(ItemStack::copy).toList();
+        } catch (RuntimeException e) {
+            Bei.LOGGER.warn("Could not list item variants from the creative tabs", e);
+            return List.of();
+        }
+    }
+
+    private static void build(int mine, List<ItemStack> variants) {
         long start = System.nanoTime();
         List<ItemEntry> built = new ArrayList<>(BuiltInRegistries.ITEM.size());
         for (Item item : BuiltInRegistries.ITEM) {
@@ -72,6 +101,21 @@ public final class ItemIndex {
                         stack.getHoverName().getString().toLowerCase(Locale.ROOT), tags));
             } catch (RuntimeException e) {
                 Bei.LOGGER.warn("Skipping {} in the item index", item, e);
+            }
+        }
+        for (ItemStack variant : variants) {
+            if (mine != generation.get()) {
+                return;
+            }
+            try {
+                Item item = variant.getItem();
+                Identifier key = BuiltInRegistries.ITEM.getKey(item);
+                Set<String> tags = new HashSet<>();
+                item.builtInRegistryHolder().tags().forEach(tag -> tags.add(tag.location().toString()));
+                built.add(new ItemEntry(item, variant, key.toString(), key.getNamespace(),
+                        variant.getHoverName().getString().toLowerCase(Locale.ROOT), tags, true));
+            } catch (RuntimeException e) {
+                Bei.LOGGER.warn("Skipping a variant of {} in the item index", variant.getItem(), e);
             }
         }
         if (mine == generation.get()) {

@@ -22,7 +22,7 @@ public final class SettingsPopup {
     private static final int SLIDER_W = 80;
 
     private static final String[] KEYS = {"browser", "tray", "hud", "corner", "ender", "opacity", "browser_bg", "card_bg", "slot_bg",
-            "custom", "columns", "rows", "theme", "cheat_target", "open_project"};
+            "custom", "columns", "rows", "theme", "cheat_target", "variants", "open_project"};
     private static final int ROWS = KEYS.length;
     private static final int OPACITY = 5;
     private static final int COLUMNS = 10;
@@ -70,6 +70,7 @@ public final class SettingsPopup {
             case 7 -> BeiConfig.cardBackground();
             case 8 -> BeiConfig.slotBackground();
             case 9 -> BeiConfig.customGrid();
+            case 14 -> BeiConfig.itemVariants();
             default -> false;
         };
     }
@@ -92,6 +93,11 @@ public final class SettingsPopup {
             case 13 -> BeiConfig.setCheatTarget(BeiConfig.cheatTarget() == BeiConfig.CheatTarget.CURSOR
                     ? BeiConfig.CheatTarget.INVENTORY : BeiConfig.CheatTarget.CURSOR);
             case 14 -> {
+                BeiConfig.setItemVariants(!BeiConfig.itemVariants());
+                com.itmecasey.bei.index.ItemIndex.rebuild();
+                BrowserPanel.invalidate();
+            }
+            case 15 -> {
                 close();
                 Minecraft.getInstance().setScreen(new ProjectScreen(Minecraft.getInstance().screen));
             }

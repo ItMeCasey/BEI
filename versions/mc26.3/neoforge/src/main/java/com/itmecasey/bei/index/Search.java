@@ -42,7 +42,9 @@ public final class Search {
             // An item whose tooltip is not read yet is kept, so results shrink as the pass finishes.
             return entry -> entry.tooltipLower == null || entry.tooltipLower.contains(text);
         }
-        return entry -> entry.nameLower.contains(word) || entry.id.contains(word);
+        // A variant (an enchanted book) is also found by what its tooltip says, once that is read.
+        return entry -> entry.nameLower.contains(word) || entry.id.contains(word)
+                || entry.variant && entry.tooltipLower != null && entry.tooltipLower.contains(word);
     }
 
     public static List<ItemEntry> filter(List<ItemEntry> source, String query, Predicate<ItemEntry> category) {

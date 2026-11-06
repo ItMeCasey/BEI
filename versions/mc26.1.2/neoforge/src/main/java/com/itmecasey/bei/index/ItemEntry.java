@@ -12,10 +12,17 @@ public final class ItemEntry {
     public final String mod;
     public final String nameLower;
     public final Set<String> tags;
+    /** A variant of an item (a potion, an enchanted book) rather than the item's plain stack. */
+    public final boolean variant;
     /** Lowercase tooltip text; null until the background pass reaches this item. */
     public volatile String tooltipLower;
 
     public ItemEntry(Item item, ItemStack stack, String id, String mod, String nameLower, Set<String> tags) {
+        this(item, stack, id, mod, nameLower, tags, false);
+    }
+
+    public ItemEntry(Item item, ItemStack stack, String id, String mod, String nameLower, Set<String> tags, boolean variant) {
+        this.variant = variant;
         this.item = item;
         this.stack = stack;
         this.id = id;
