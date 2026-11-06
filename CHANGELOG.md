@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.5 (all ten builds)
+
+- Plugin API: recipe transfer. A mod can register an `IRecipeTransferHandler` for its own screen (from `IBeiPlugin.registerTransfers`) so the plus button in BEI's recipe popup fills that screen, the way other recipe viewers' transfer handlers do. The handler decides per recipe whether the button is enabled, dimmed with a reason, or hidden, and gets the recipe's ingredients and outputs and the Shift and Control state when it is clicked. BEI sends no packets; the mod sends its own. BEI's own fill for the crafting table, furnaces, stonecutter and smithing table is unchanged and is used when no handler answers.
+- Checked in a client on NeoForge 1.21.1 with a dummy handler: the enabled button, its tooltip, the dimmed button with its reason, and a click that ran the handler. Unit tests cover which handler wins and the button states.
+
 ## 2026.11.4 (all ten builds)
 
 - Item tooltips no longer repeat text that a mod's graphic replaces. When a mod removes lines while the game gathers a tooltip (OrangePeel removes its "Hunger +N Saturation +N" line because its shank icons show the same thing), BEI now leaves those lines out and draws the graphic once. Lines the mod keeps still show.
