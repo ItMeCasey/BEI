@@ -2,9 +2,9 @@
 
 ## 2026.11.7 (all ten builds)
 
-- Item variants. Potions, splash and lingering potions, tipped arrows, enchanted books and the other items the creative tabs list in several forms now get one browser entry per form. A plain search finds a variant by name, and by its tooltip text once BEI has read the tooltips (so "sharpness" finds the Sharpness book). A new **Show variants** setting (on by default) turns it off.
+- Item variants. Potions, splash and lingering potions, tipped arrows, enchanted books and the other items the creative tabs list in several forms now get one browser entry per form. A plain search finds a variant by name. A new **Show variants** setting (on by default) turns it off.
 - Plugin API: storage sources. `IBeiPlugin.registerStorageSources(IStorageRegistration)` lets a mod add a place the Master Blueprint counts items from (a backpack, a storage network) with an `IStorageSource`. The inventory and the ender chest are now sources of the same kind. A source that throws is skipped and counts nothing.
-- Checked in a client on NeoForge 1.21.1: potion and enchanted-book entries with their tooltips, and the setting turning them off and on. The other nine builds compile with the same code. New unit tests cover the storage totals, the variant list and the Master Blueprint tree and plan.
+- Checked in a client on NeoForge 1.21.1: potion and enchanted-book entries with their tooltips, and the setting turning them off and on. New and not yet checked in a client: a plain search word also matches the tooltip text of a variant (so "sharpness" should find the Sharpness book). The other nine builds compile with the same code. New unit tests cover the storage totals, the variant list and the Master Blueprint tree and plan.
 
 ## 2026.11.6 (all ten builds)
 
