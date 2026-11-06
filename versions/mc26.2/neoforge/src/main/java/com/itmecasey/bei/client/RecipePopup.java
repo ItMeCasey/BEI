@@ -401,7 +401,11 @@ public final class RecipePopup {
             }
             for (Button plus : PLUS) {
                 if (Ui.in(mx, my, plus.x(), plus.y(), 12, 12)) {
-                    tip = plus.handler() ? "bei.tip.transfer" : "bei.tip.autofill";
+                    if (!plus.handler()) {
+                        tip = "bei.tip.autofill";
+                    } else if (tipLines == null) {
+                        tipLines = List.of(Component.translatable("bei.tip.transfer"), Component.translatable("bei.tip.transfer_keys"));
+                    }
                 }
             }
             for (Dimmed dimmed : DIMMED) {
