@@ -70,6 +70,14 @@ public final class PluginHost {
                 Bei.LOGGER.warn("The BEI plugin {} failed to register its categories", plugin.getClass().getName(), e);
             }
         }
+        TransferHost.clear();
+        for (IBeiPlugin plugin : plugins) {
+            try {
+                plugin.registerTransfers(TransferHost::register);
+            } catch (RuntimeException | LinkageError e) {
+                Bei.LOGGER.warn("The BEI plugin {} failed to register its transfer handlers", plugin.getClass().getName(), e);
+            }
+        }
         Bei.LOGGER.info("Loaded {} BEI plugin(s) with {} recipe categories", plugins.size(), CATEGORIES.size());
     }
 

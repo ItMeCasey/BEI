@@ -47,7 +47,7 @@ final class AutoFill {
     private record Layout(List<Target> targets, List<Slot> clear, boolean all) {
     }
 
-    private static @Nullable AbstractContainerMenu menu() {
+    static @Nullable AbstractContainerMenu menu() {
         return Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> screen ? screen.getMenu() : null;
     }
 

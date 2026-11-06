@@ -2,6 +2,8 @@ package com.itmecasey.bei.client;
 
 import com.itmecasey.bei.BeiConfig;
 import com.itmecasey.bei.index.BeiRecipe;
+import com.itmecasey.bei.plugin.TransferDispatch;
+import com.itmecasey.bei.plugin.TransferHost;
 import com.itmecasey.bei.index.RecipeIndex;
 import com.itmecasey.bei.project.InventoryScanner;
 import com.itmecasey.bei.project.Project;
@@ -44,7 +46,14 @@ public final class RecipePopup {
     private record Hit(int x, int y, ItemStack stack) {
     }
 
-    private record Button(int x, int y, BeiRecipe recipe) {
+    private record Button(int x, int y, BeiRecipe recipe, boolean handler) {
+        Button(int x, int y, BeiRecipe recipe) {
+            this(x, y, recipe, false);
+        }
+    }
+
+    /** A dimmed plus button of a transfer handler, with why it cannot be used. */
+    private record Dimmed(int x, int y, Component reason) {
     }
 
     private record StationButton(int x, int y, Station station) {
@@ -57,6 +66,7 @@ public final class RecipePopup {
     private static final Deque<Entry> HISTORY = new ArrayDeque<>();
     private static final List<Hit> HITS = new ArrayList<>();
     private static final List<Button> PLUS = new ArrayList<>();
+    private static final List<Dimmed> DIMMED = new ArrayList<>();
     private static final List<Button> PROJECT = new ArrayList<>();
     private static final List<StationButton> STATIONS = new ArrayList<>();
     /** The area each custom card painted this frame, for the painter's tooltips. */
@@ -339,6 +349,7 @@ public final class RecipePopup {
         bodyBottom = py + ph - 6;
         HITS.clear();
         PLUS.clear();
+        DIMMED.clear();
         PROJECT.clear();
         CUSTOM.clear();
         frameMouseX = mx;
@@ -390,7 +401,12 @@ public final class RecipePopup {
             }
             for (Button plus : PLUS) {
                 if (Ui.in(mx, my, plus.x(), plus.y(), 12, 12)) {
-                    tip = "bei.tip.autofill";
+                    tip = plus.handler() ? "bei.tip.transfer" : "bei.tip.autofill";
+                }
+            }
+            for (Dimmed dimmed : DIMMED) {
+                if (Ui.in(mx, my, dimmed.x(), dimmed.y(), 12, 12) && tipLines == null) {
+                    tipLines = List.of(Component.translatable("bei.tip.transfer_unavailable"), dimmed.reason());
                 }
             }
             for (Button project : PROJECT) {
@@ -508,10 +524,24 @@ public final class RecipePopup {
         Ui.round(g, bx, projectY, 12, 12, active ? Ui.accent() : Ui.cardHover());
         g.text(font, "P", bx + 3, projectY + 2, active ? Ui.onAccent() : Ui.text(), false);
         PROJECT.add(new Button(bx, projectY, recipe));
-        if (AutoFill.canFill(recipe)) {
-            PLUS.add(new Button(bx, plusY, recipe));
-            Ui.round(g, bx, plusY, 12, 12, Ui.accent());
-            g.text(font, "+", bx + 3, plusY + 2, Ui.onAccent(), false);
+        var menu = AutoFill.menu();
+        boolean builtIn = AutoFill.canFill(recipe);
+        TransferHost.View view = menu == null
+                ? new TransferHost.View(builtIn ? TransferDispatch.Mode.BUILT_IN : TransferDispatch.Mode.HIDDEN, null)
+                : TransferHost.view(menu, recipe, builtIn, Minecraft.getInstance().hasShiftDown(), Minecraft.getInstance().hasControlDown());
+        switch (view.mode()) {
+            case HANDLER, BUILT_IN -> {
+                PLUS.add(new Button(bx, plusY, recipe, view.mode() == TransferDispatch.Mode.HANDLER));
+                Ui.round(g, bx, plusY, 12, 12, Ui.accent());
+                g.text(font, "+", bx + 3, plusY + 2, Ui.onAccent(), false);
+            }
+            case DISABLED -> {
+                DIMMED.add(new Dimmed(bx, plusY, view.reason() != null ? view.reason() : Component.translatable("bei.tip.transfer_unavailable")));
+                Ui.round(g, bx, plusY, 12, 12, Ui.cardHover());
+                g.text(font, "+", bx + 3, plusY + 2, Ui.dim(), false);
+            }
+            default -> {
+            }
         }
     }
 
@@ -577,7 +607,7 @@ public final class RecipePopup {
         if (Ui.in(mx, my, px, bodyTop, pw, bodyBottom - bodyTop)) {
             for (Button plus : PLUS) {
                 if (Ui.in(mx, my, plus.x(), plus.y(), 12, 12)) {
-                    if (AutoFill.fill(plus.recipe(), Minecraft.getInstance().hasShiftDown())) {
+                    if (clickPlus(plus, Minecraft.getInstance().hasShiftDown(), Minecraft.getInstance().hasControlDown())) {
                         close();
                     }
                     return true;
@@ -595,6 +625,15 @@ public final class RecipePopup {
             open(stack.getItem(), event.button() == 1);
         }
         return true;
+    }
+
+    /** Clicks a plus button: a plugin's transfer handler when it answers for the open menu, otherwise BEI's own fill. */
+    private static boolean clickPlus(Button plus, boolean shift, boolean control) {
+        var menu = AutoFill.menu();
+        if (menu != null && plus.handler()) {
+            return TransferHost.transfer(menu, plus.recipe(), shift, control);
+        }
+        return AutoFill.fill(plus.recipe(), shift);
     }
 
     /** The P button: make this recipe the Master Project (again to clear). */

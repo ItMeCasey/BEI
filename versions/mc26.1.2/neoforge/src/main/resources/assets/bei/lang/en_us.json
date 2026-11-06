@@ -90,6 +90,8 @@
   "bei.settings.browser_bg": "Browser background",
   "bei.settings.browser_bg.tip": "Draw a backdrop behind the item browser. Off leaves just the items.",
   "bei.tip.autofill": "Put these ingredients in the crafting grid (Shift: as many as you have, up to a stack)",
+  "bei.tip.transfer": "Fill the open screen with these ingredients (Shift: a full stack, Ctrl: as many as possible)",
+  "bei.tip.transfer_unavailable": "Cannot fill the open screen",
   "bei.settings.theme": "Theme",
   "bei.settings.theme.tip": "Click to switch theme. Datapacks can add more.",
   "bei.category.all": "All",

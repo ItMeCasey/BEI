@@ -16,4 +16,11 @@ public interface IBeiPlugin {
     /** Adds recipes of the registered categories. Anything added here also shows in "uses" lookups and the Master Project tracker. */
     default void registerRecipes(IRecipeRegistration registration) {
     }
+
+    /**
+     * Registers handlers that fill a menu's grid from a recipe when the player clicks the plus button in the recipe
+     * popup. Runs once, with {@link #registerCategories}.
+     */
+    default void registerTransfers(ITransferRegistration registration) {
+    }
 }
