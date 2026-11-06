@@ -30,4 +30,11 @@ public interface IBeiPlugin {
      */
     default void registerSearch(ISearchAccess search) {
     }
+
+    /**
+     * Registers places the Master Blueprint counts items from (a backpack, a storage network), once, with
+     * {@link #registerTransfers}.
+     */
+    default void registerStorageSources(IStorageRegistration registration) {
+    }
 }

@@ -1,56 +1,63 @@
 package com.itmecasey.bei.project;
 
+import com.itmecasey.bei.Bei;
 import com.itmecasey.bei.BeiConfig;
-import java.util.HashMap;
-import java.util.List;
+import com.itmecasey.bei.api.IItemCounter;
+import com.itmecasey.bei.api.IStorageSource;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Function;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 
 /**
- * Totals what the player owns. The inventory is always counted, the ender chest if the setting is
- * on, and other mods can add storage (a backpack, a networked storage system) with
- * {@link #registerSource}.
+ * Totals what the player owns for the Master Blueprint and the recipe popup. The sources are the inventory, the ender
+ * chest if the setting is on, and whatever plugins add with {@link #register} (a backpack, a networked storage
+ * system); see {@link IStorageSource}.
  */
 public final class InventoryScanner {
-    private static final List<Function<Player, ? extends Iterable<ItemStack>>> SOURCES = new CopyOnWriteArrayList<>();
+    private static final StorageTotals.Registry<IStorageSource> SOURCES = new StorageTotals.Registry<>(IStorageSource::id);
+
+    static {
+        SOURCES.register(new IStorageSource() {
+            @Override
+            public String id() {
+                return "bei:inventory";
+            }
+
+            @Override
+            public void count(Player player, IItemCounter counter) {
+                for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                    counter.add(player.getInventory().getItem(i));
+                }
+            }
+        });
+        SOURCES.register(new IStorageSource() {
+            @Override
+            public String id() {
+                return "bei:ender_chest";
+            }
+
+            @Override
+            public void count(Player player, IItemCounter counter) {
+                if (!BeiConfig.countEnderChest()) {
+                    return;
+                }
+                for (int i = 0; i < player.getEnderChestInventory().getContainerSize(); i++) {
+                    counter.add(player.getEnderChestInventory().getItem(i));
+                }
+            }
+        });
+    }
 
     private InventoryScanner() {
     }
 
-    /** Adds a place to count items from; the function is called with the local player. */
-    public static void registerSource(Function<Player, ? extends Iterable<ItemStack>> source) {
-        SOURCES.add(source);
+    /** Adds a place to count items from; a source with the same id replaces the earlier one. */
+    public static void register(IStorageSource source) {
+        SOURCES.register(source);
     }
 
     public static Map<Item, Integer> snapshot(Player player) {
-        Map<Item, Integer> totals = new HashMap<>();
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            add(totals, player.getInventory().getItem(i));
-        }
-        if (BeiConfig.countEnderChest()) {
-            for (int i = 0; i < player.getEnderChestInventory().getContainerSize(); i++) {
-                add(totals, player.getEnderChestInventory().getItem(i));
-            }
-        }
-        for (Function<Player, ? extends Iterable<ItemStack>> source : SOURCES) {
-            try {
-                for (ItemStack stack : source.apply(player)) {
-                    add(totals, stack);
-                }
-            } catch (RuntimeException e) {
-                // A broken storage source only means its items are not counted.
-            }
-        }
-        return totals;
-    }
-
-    private static void add(Map<Item, Integer> totals, ItemStack stack) {
-        if (!stack.isEmpty()) {
-            totals.merge(stack.getItem(), stack.getCount(), Integer::sum);
-        }
+        return StorageTotals.collect(SOURCES.snapshot(), (source, totals) -> source.count(player, totals::add),
+                e -> Bei.LOGGER.warn("A BEI storage source failed; its items are not counted", e));
     }
 }

@@ -86,6 +86,13 @@ public final class PluginHost {
                 Bei.LOGGER.warn("The BEI plugin {} failed to take the search access", plugin.getClass().getName(), e);
             }
         }
+        for (IBeiPlugin plugin : plugins) {
+            try {
+                plugin.registerStorageSources(com.itmecasey.bei.project.InventoryScanner::register);
+            } catch (RuntimeException | LinkageError e) {
+                Bei.LOGGER.warn("The BEI plugin {} failed to register its storage sources", plugin.getClass().getName(), e);
+            }
+        }
         Bei.LOGGER.info("Loaded {} BEI plugin(s) with {} recipe categories", plugins.size(), CATEGORIES.size());
     }
 
