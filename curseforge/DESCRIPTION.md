@@ -8,9 +8,9 @@ Barely Enough Items (BEI) is a minimalist, fast item and recipe viewer for Minec
 
 ![Features](https://raw.githubusercontent.com/ItMeCasey/BEI/main/branding/banners/h_features.png)
 
-- **Item browser:** opens with every item and searches in the background, so opening a screen never waits. Use `@mod`, `#tag`, `$tooltip` and `-exclude`, plus category icons and a scrollbar.
+- **Item browser:** opens with every item (and every potion, enchanted book and other variant) and searches in the background, so opening a screen never waits. Use `@mod`, `#tag`, `$tooltip` and `-exclude`, plus category icons and a scrollbar.
 - **Recipe popup:** recipes grouped by station (the ones you can make come first), uses lookups, centered 3x3 crafting cards, and a `+` button that fills the crafting grid, furnace, stonecutter or smithing table from your inventory. Hold Shift for a full stack.
-- **Master Blueprint:** press `P` on any item to make it your project. BEI builds a dependency tree, checks your inventory (and optionally your ender chest), shows the next craft or what to gather, and pins a percent-done HUD.
+- **Master Blueprint:** press `P` on any item to make it your project. BEI builds a dependency tree, checks your inventory (and optionally your ender chest and storage that other mods add), shows the next craft or what to gather, and pins a percent-done HUD.
 - **Themes:** dark and light built in, themes from datapacks, adjustable backdrop opacity, draggable windows and rarity-colored item tooltips.
 - **Cheat mode:** Ctrl+click the gear, then click items to hold or place them with no commands. Needs creative mode, operator permission, or your own singleplayer world.
 

@@ -4,9 +4,9 @@ A minimalist, fast item and recipe viewer for Minecraft (Forge and NeoForge). Th
 
 **Features**
 
-- Item browser: opens with every item, searches in the background (`@mod`, `#tag`, `$tooltip`, `-exclude`), category icons, scrollbar, and groups and hidden items from datapacks. The index builds off the render thread, so opening a screen never waits.
+- Item browser: opens with every item (and every potion, enchanted book and other variant, with a setting to turn that off), searches in the background (`@mod`, `#tag`, `$tooltip`, `-exclude`), category icons, scrollbar, and groups and hidden items from datapacks. The index builds off the render thread, so opening a screen never waits.
 - Recipe popup: recipes grouped by station (those you can make first), uses lookups, centered 3x3 crafting cards, `P` to make a recipe your project, and `+` to fill the crafting grid, furnace, stonecutter or smithing table from your inventory (Shift for a full stack).
-- Master Blueprint: a dependency tree for any item that checks your inventory (and optionally ender chest), shows the next craft or what to gather, with a percent-done HUD.
+- Master Blueprint: a dependency tree for any item that checks your inventory (and optionally ender chest and any storage a mod adds), shows the next craft or what to gather, with a percent-done HUD.
 - Themes: dark, light, and datapack themes; backdrop opacity; draggable windows; rarity-colored item tooltips that include the game's graphical parts (a bundle's contents, a mod's food bar).
 - Cheat mode (Ctrl+click the gear): click items to hold or place them, with no commands. Needs creative mode, operator permission, or your own singleplayer world.
 - Plugin API for mods that add recipe types and recipe cards, and [ModJS](https://github.com/ItMeCasey/ModJS) script support.
@@ -121,7 +121,7 @@ A mod adds its own recipe categories, recipes and card looks with a class marked
 
 A plugin can also register an `IRecipeTransferHandler` from `registerTransfers`: BEI shows a plus button on the recipes of the screen that handler is for (enabled, dimmed with a reason, or hidden) and calls the handler on the client when it is clicked, with the Shift and Control state. BEI sends no packets.
 
-A plugin can also mirror BEI's search box: `registerSearch(ISearchAccess)` hands it an object with `getText`, `setText` (refreshes the results) and listeners for text changes.
+A plugin can also mirror BEI's search box: `registerSearch(ISearchAccess)` hands it an object with `getText`, `setText` (refreshes the results) and listeners for text changes. And `registerStorageSources` adds a place the Master Blueprint counts items from (a backpack, a storage network): an `IStorageSource` reports what it holds through an `IItemCounter`.
 
 ```java
 @BeiPlugin("mymachines")            // optional: only load when this mod is installed
