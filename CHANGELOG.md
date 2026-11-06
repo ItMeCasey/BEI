@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.11.6 (all ten builds)
+
+- Plugin API: search access. `IBeiPlugin.registerSearch(ISearchAccess)` gives a mod BEI's search box: read the text, set it (the results refresh as if the player typed it) and listen for changes, so a terminal's search field can mirror BEI's both ways. Setting the same text again does nothing, so two mirroring mods do not loop.
+
 ## 2026.11.5 (all ten builds)
 
 - Plugin API: recipe transfer. A mod can register an `IRecipeTransferHandler` for its own screen (from `IBeiPlugin.registerTransfers`) so the plus button in BEI's recipe popup fills that screen, the way other recipe viewers' transfer handlers do. The handler decides per recipe whether the button is enabled, dimmed with a reason, or hidden, and gets the recipe's ingredients and outputs and the Shift and Control state when it is clicked. BEI sends no packets; the mod sends its own. BEI's own fill for the crafting table, furnaces, stonecutter and smithing table is unchanged and is used when no handler answers.
