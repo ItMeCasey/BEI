@@ -22,13 +22,15 @@ public final class SettingsPopup {
     private static final int SLIDER_W = 80;
 
     private static final String[] KEYS = {"browser", "tray", "hud", "corner", "ender", "opacity", "browser_bg", "card_bg", "slot_bg",
-            "custom", "columns", "rows", "theme", "cheat_target", "variants", "open_project"};
+            "custom", "columns", "rows", "theme", "cheat_target", "variants", "sort", "edit_mode", "open_project"};
     private static final int ROWS = KEYS.length;
     private static final int OPACITY = 5;
     private static final int COLUMNS = 10;
     private static final int GRID_ROWS = 11;
     private static final int THEME = 12;
     private static final int CHEAT = 13;
+    private static final int SORT = 15;
+    private static final int EDIT = 16;
 
     private static final WindowPos POS = new WindowPos("settings");
     private static boolean open;
@@ -71,6 +73,7 @@ public final class SettingsPopup {
             case 8 -> BeiConfig.slotBackground();
             case 9 -> BeiConfig.customGrid();
             case 14 -> BeiConfig.itemVariants();
+            case EDIT -> EditMode.on();
             default -> false;
         };
     }
@@ -97,7 +100,9 @@ public final class SettingsPopup {
                 com.itmecasey.bei.index.ItemIndex.rebuild();
                 BrowserPanel.invalidate();
             }
-            case 15 -> {
+            case SORT -> BrowserPanel.cycleSortOrder();
+            case EDIT -> EditMode.toggle();
+            case 17 -> {
                 close();
                 Minecraft.getInstance().setScreen(new ProjectScreen(Minecraft.getInstance().screen));
             }
@@ -168,6 +173,9 @@ public final class SettingsPopup {
             } else if (row == CHEAT) {
                 String target = I18n.get("bei.cheat." + BeiConfig.cheatTarget().name().toLowerCase(Locale.ROOT));
                 g.text(font, target, px + PW - 12 - font.width(target), y + 4, Ui.accent(), false);
+            } else if (row == SORT) {
+                String order = I18n.get("bei.sort." + BrowserPanel.sortOrder().key());
+                g.text(font, order, px + PW - 12 - font.width(order), y + 4, Ui.accent(), false);
             } else if (row == 3) {
                 String corner = I18n.get("bei.settings.corner." + BeiConfig.hudCorner().name().toLowerCase(Locale.ROOT));
                 g.text(font, corner, px + PW - 12 - font.width(corner), y + 4, Ui.accent(), false);

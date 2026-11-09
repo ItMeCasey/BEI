@@ -94,6 +94,7 @@ public final class RecipeIndex {
         if (game.level == null) {
             return;
         }
+        com.itmecasey.bei.compat.JeiHooks.reload();
         ContextMap context = SlotDisplayContext.fromLevel(game.level);
         Thread thread = new Thread(() -> convert(snapshot, context), "BEI-recipes");
         thread.setDaemon(true);

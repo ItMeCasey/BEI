@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026.11.10 (all ten builds)
+
+JEI parity. BEI now covers what players and mod authors use JEI for.
+
+- **Bookmarks.** Press **A** over an item (in the browser, the recipe popup or a slot) to bookmark it. A strip under the grid shows the bookmarks; click one like a grid item, press **A** over it to remove it. They are saved per profile in `config/bei_client.json`.
+- **Edit mode.** A new setting. While it is on, clicking an item in the browser hides it (hidden items show dimmed so a click brings them back). What you hide is saved and works next to the datapack hidden lists.
+- **Search prefixes.** `%tab` finds items by creative tab name, `^color` by color (from names and block map colors), `&id` by resource id. The existing `@`, `#`, `$` and `-` are unchanged.
+- **Sort order.** A new setting: creative tab (the new default), name, or mod then name.
+- **Forward in the recipe popup.** A forward button (and the Right arrow) next to back; Left arrow also goes back.
+- **JEI bridge: category drawing.** A bridged JEI category now draws its own card: textures, animated progress bars, backgrounds, recipe extras and tooltips. Catalyst and display-only slots are drawn as items.
+- **JEI bridge: fluids and other ingredients.** Fluid slots show the fluid's bucket named with the fluid and amount; other registered ingredient types show as named placeholders.
+- **JEI bridge: recipe transfer.** A plugin's transfer handlers (typed, universal and by slot range) answer the plus button on modded machine screens.
+- **JEI bridge: information pages.** `addIngredientInfo` becomes an Information station.
+- **JEI bridge: runs when recipes arrive.** Plugins that read the recipe list while they register (Applied Energistics) now see it; before, their recipes were missing.
+- **JEI bridge: nothing is skipped silently.** Every JEI call with no BEI equivalent is logged once (`JEI bridge: <Interface>.<method> is not supported`) and listed with its reason in `docs/PORTING.md`.
+- Checked in a client on NeoForge 1.21.1 with AE2 (the inscriber card with its textures and progress bar, the in-world transformation cards) and with Farmer's Delight. Unit tests cover the new pure code, the drawables, the slot views and the transfer adapter. The other builds (NeoForge 26.1.2, 26.2, 26.3, Forge 1.21.1, 26.1.2, 26.2, 26.3) were started in a client, joined a world and loaded without errors with the new code; the Forge 1.20.1 and NeoForge 1.20.1 jars loaded in a real Forge 47.4.28 install. The `bei-api` jar is unchanged.
+
 ## 2026.11.9 (all ten builds)
 
 - JEI bridge: runtime. Plugins now get `onRuntimeAvailable` with a small `IJeiRuntime`, so a mod's own hide calls work: `removeIngredientsAtRuntime` (item stacks) hides the items in the browser, and `hideRecipeCategory` hides a recipe category, including game recipe types such as `minecraft:campfire_cooking`. This is what ModJS's `RecipeViewerEvents.hideItems` and `hideCategories` use. Items are hidden by item id, whatever their data.

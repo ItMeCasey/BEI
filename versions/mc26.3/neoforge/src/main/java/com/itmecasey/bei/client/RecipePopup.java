@@ -64,6 +64,7 @@ public final class RecipePopup {
     }
 
     private static final Deque<Entry> HISTORY = new ArrayDeque<>();
+    private static final Deque<Entry> FORWARD = new ArrayDeque<>();
     private static final List<Hit> HITS = new ArrayList<>();
     private static final List<Button> PLUS = new ArrayList<>();
     private static final List<Dimmed> DIMMED = new ArrayList<>();
@@ -87,6 +88,7 @@ public final class RecipePopup {
     private static int pw;
     private static int ph;
     private static boolean backShown;
+    private static boolean forwardShown;
 
     private RecipePopup() {
     }
@@ -98,6 +100,7 @@ public final class RecipePopup {
     public static void open(Item item, boolean uses) {
         SettingsPopup.close();
         HISTORY.push(new Entry(item, uses));
+        FORWARD.clear();
         selectedKey = null;
         scroll = 0;
     }
@@ -105,14 +108,23 @@ public final class RecipePopup {
     public static void close() {
         barDragging = false;
         HISTORY.clear();
+        FORWARD.clear();
         selectedKey = null;
         scroll = 0;
     }
 
     private static void back() {
-        HISTORY.pop();
+        FORWARD.push(HISTORY.pop());
         selectedKey = null;
         scroll = 0;
+    }
+
+    private static void forward() {
+        if (!FORWARD.isEmpty()) {
+            HISTORY.push(FORWARD.pop());
+            selectedKey = null;
+            scroll = 0;
+        }
     }
 
     // ---- grouping by station ----------------------------------------------------------------------
@@ -276,7 +288,8 @@ public final class RecipePopup {
         }
         pw = Math.min(screenW - 16, widest);
         backShown = HISTORY.size() > 1;
-        int perRow = Math.max(1, (pw - 12 - (backShown ? 20 : 0)) / (STATION + 2));
+        forwardShown = !FORWARD.isEmpty();
+        int perRow = Math.max(1, (pw - 12 - (backShown ? 20 : 0) - (forwardShown ? 20 : 0)) / (STATION + 2));
         int stationRows = stations.isEmpty() ? 0 : (stations.size() + perRow - 1) / perRow;
         headerH = 26 + stationRows * (STATION + 2) + 4;
         ph = Math.min(Math.min(screenH - 16, 300), Math.max(70, headerH + total + 8));
@@ -317,6 +330,14 @@ public final class RecipePopup {
             Ui.button(g, font, firstX, rowY, 16, STATION, "‹", over, false);
             if (over) {
                 tip = "bei.tip.back";
+            }
+            firstX += 20;
+        }
+        if (forwardShown) {
+            boolean over = Ui.in(mx, my, firstX, rowY, 16, STATION);
+            Ui.button(g, font, firstX, rowY, 16, STATION, "›", over, false);
+            if (over) {
+                tip = "bei.tip.forward";
             }
             firstX += 20;
         }
@@ -593,6 +614,10 @@ public final class RecipePopup {
             back();
             return true;
         }
+        if (forwardShown && Ui.in(mx, my, px + 6 + (backShown ? 20 : 0), py + 26, 16, STATION)) {
+            forward();
+            return true;
+        }
         for (StationButton button : STATIONS) {
             if (Ui.in(mx, my, button.x(), button.y(), STATION, STATION)) {
                 selectedKey = button.station().key();
@@ -680,15 +705,21 @@ public final class RecipePopup {
             }
             return true;
         }
-        if (event.key() == InputConstants.KEY_BACKSPACE) {
+        if (event.key() == InputConstants.KEY_BACKSPACE || event.key() == InputConstants.KEY_LEFT) {
             if (HISTORY.size() > 1) {
                 back();
             }
             return true;
         }
+        if (event.key() == InputConstants.KEY_RIGHT) {
+            forward();
+            return true;
+        }
         ItemStack stack = hovered(mx, my);
         if (stack != null) {
-            if (ClientInit.SHOW_RECIPES.matches(event)) {
+            if (event.key() == InputConstants.KEY_A) {
+                Bookmarks.toggle(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+            } else if (ClientInit.SHOW_RECIPES.matches(event)) {
                 open(stack.getItem(), false);
             } else if (ClientInit.SHOW_USES.matches(event)) {
                 open(stack.getItem(), true);

@@ -46,7 +46,6 @@ public final class PluginHost {
         if (!loaded) {
             loaded = true;
             load();
-            com.itmecasey.bei.compat.JeiHooks.loadOnce();
         }
     }
 

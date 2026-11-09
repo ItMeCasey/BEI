@@ -105,6 +105,23 @@ final class AutoFill {
     // ---- which station, which slots ---------------------------------------------------------------
 
     private static @Nullable Layout layout(BeiRecipe recipe, AbstractContainerMenu menu) {
+        if (recipe.type().startsWith("bei:slots:")) {
+            // A plain slot range (see SlotFill): the recipe's inputs go into the slots from the given index on.
+            int start = Integer.parseInt(recipe.type().substring("bei:slots:".length()));
+            List<Target> targets = new ArrayList<>();
+            List<Slot> clear = new ArrayList<>();
+            for (int i = 0; i < recipe.inputs().size(); i++) {
+                if (start + i >= menu.slots.size()) {
+                    return null;
+                }
+                Slot slot = menu.slots.get(start + i);
+                clear.add(slot);
+                if (!recipe.inputs().get(i).isEmpty()) {
+                    targets.add(new Target(recipe.inputs().get(i), slot));
+                }
+            }
+            return new Layout(targets, clear, false);
+        }
         switch (recipe.type()) {
             case "ShapedCrafting", "ShapelessCrafting" -> {
                 if (!(menu instanceof CraftingMenu) && !(menu instanceof InventoryMenu)) {

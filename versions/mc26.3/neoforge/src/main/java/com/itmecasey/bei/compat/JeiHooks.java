@@ -48,6 +48,11 @@ public final class JeiHooks {
         call("loadOnce", new Class<?>[0], new Object[0], null);
     }
 
+    /** Runs the JEI plugins again; the game's recipes just arrived. */
+    public static void reload() {
+        call("reload", new Class<?>[0], new Object[0], null);
+    }
+
     @SuppressWarnings("unchecked")
     public static List<BeiRecipe> contribute() {
         return (List<BeiRecipe>) call("contribute", new Class<?>[0], new Object[0], List.of());

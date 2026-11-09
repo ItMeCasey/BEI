@@ -115,5 +115,14 @@
   "bei.group.more": "+%s more",
   "bei.station.count": "%s recipes",
   "bei.station.craftable": "You can make some of these",
-  "bei.tip.project_recipe": "Make this recipe your Master Project"
+  "bei.tip.project_recipe": "Make this recipe your Master Project",
+  "bei.settings.sort": "Sort order",
+  "bei.settings.sort.tip": "How the item grid is ordered: by creative tab, by name or by mod.",
+  "bei.settings.edit_mode": "Edit mode",
+  "bei.settings.edit_mode.tip": "While on, clicking an item in the browser hides it (hidden items show dimmed); click it again to show it. Saved for this profile.",
+  "bei.sort.creative": "Creative tab",
+  "bei.sort.name": "Name",
+  "bei.sort.mod": "Mod",
+  "bei.tip.forward": "Forward",
+  "bei.tip.search_more": "%tab  ^color  &id  – creative tab, color, resource id"
 }

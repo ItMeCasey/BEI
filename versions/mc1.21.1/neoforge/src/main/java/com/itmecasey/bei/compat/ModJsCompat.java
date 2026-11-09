@@ -193,6 +193,20 @@ public final class ModJsCompat {
         return out;
     }
 
+    /** Information pages for items from a JEI plugin's addIngredientInfo, in the same category ModJS's pages use. */
+    public static List<BeiRecipe> infoPages(String idPrefix, List<ItemStack> items, List<String> paragraphs) {
+        RecipeCategory category = infoCategory(paragraphs);
+        List<BeiRecipe> out = new ArrayList<>();
+        int number = 0;
+        for (ItemStack item : items) {
+            ItemStack shown = item.copy();
+            CustomRecipe custom = CustomRecipe.builder().output(shown).build();
+            out.add(new BeiRecipe(idPrefix + "/" + number++, INFO_ID.toString(), 0, List.of(), List.of(shown),
+                    List.of(category.station()), category, custom));
+        }
+        return out;
+    }
+
     /** A card made of the page's paragraphs, wrapped to the card width; its height fits the text. */
     private static RecipeCategory infoCategory(List<String> paragraphs) {
         var font = Minecraft.getInstance().font;

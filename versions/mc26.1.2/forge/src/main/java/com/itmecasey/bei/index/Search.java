@@ -42,6 +42,18 @@ public final class Search {
             // An item whose tooltip is not read yet is kept, so results shrink as the pass finishes.
             return entry -> entry.tooltipLower == null || entry.tooltipLower.contains(text);
         }
+        if (word.startsWith("%")) {
+            String tab = word.substring(1);
+            return entry -> entry.tabsLower.contains(tab);
+        }
+        if (word.startsWith("^")) {
+            String color = word.substring(1);
+            return entry -> entry.colorsLower.contains(color);
+        }
+        if (word.startsWith("&")) {
+            String id = word.substring(1);
+            return entry -> entry.id.contains(id);
+        }
         // A variant (an enchanted book) is also found by what its tooltip says, once that is read.
         return entry -> entry.nameLower.contains(word) || entry.id.contains(word)
                 || entry.variant && entry.tooltipLower != null && entry.tooltipLower.contains(word);

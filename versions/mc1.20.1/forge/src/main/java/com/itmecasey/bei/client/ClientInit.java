@@ -60,6 +60,7 @@ public final class ClientInit {
     /** The game's recipes arrived (or changed): index them. */
     @SubscribeEvent
     public static void onRecipes(net.minecraftforge.client.event.RecipesUpdatedEvent event) {
+        com.itmecasey.bei.compat.JeiHooks.reload();
         com.itmecasey.bei.index.RecipeIndex.rebuild(event.getRecipeManager());
     }
 

@@ -28,6 +28,11 @@ public final class TransferHost {
         HANDLERS.add(handler);
     }
 
+    /** Removes the handlers that match (the JEI bridge swaps its own when it reloads). */
+    public static synchronized void removeIf(java.util.function.Predicate<IRecipeTransferHandler<?>> test) {
+        HANDLERS.removeIf(test);
+    }
+
     /** Forgets every handler (the plugins register again when they are loaded). */
     static synchronized void clear() {
         HANDLERS.clear();

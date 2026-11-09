@@ -138,6 +138,7 @@ public final class Groups {
         List<String> allHidden = new ArrayList<>(hiddenSpecs);
         allHidden.addAll(com.itmecasey.bei.compat.ModJsCompat.hiddenItemSpecs());
         allHidden.addAll(com.itmecasey.bei.compat.JeiHidden.itemSpecs());
+        allHidden.addAll(EditMode.hiddenSpecs());
         for (String spec : allHidden) {
             for (ItemEntry entry : match(spec, entries, byId)) {
                 hidden.add(entry.item);

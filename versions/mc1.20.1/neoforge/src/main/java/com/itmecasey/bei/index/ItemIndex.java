@@ -5,9 +5,11 @@ import net.minecraft.world.item.CreativeModeTab;
 import com.itmecasey.bei.BeiConfig;
 import com.itmecasey.bei.Bei;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.client.Minecraft;
@@ -28,6 +30,9 @@ public final class ItemIndex {
     private static volatile boolean ready;
     private static final AtomicInteger generation = new AtomicInteger();
     private static int tooltipCursor;
+    /** Creative tab names and positions per item, read on the main thread before the background build. */
+    private static volatile Map<Item, String> tabNames = Map.of();
+    private static volatile Map<Item, Integer> tabOrder = Map.of();
 
     private ItemIndex() {
     }
@@ -51,6 +56,7 @@ public final class ItemIndex {
         int mine = generation.incrementAndGet();
         ready = false;
         tooltipCursor = 0;
+        collectTabs();
         List<ItemStack> variants = collectVariants();
         Thread thread = new Thread(() -> build(mine, variants), "BEI-index");
         thread.setDaemon(true);
@@ -82,6 +88,45 @@ public final class ItemIndex {
         }
     }
 
+    /** Which creative tabs list each item and where, for {@code %tab} searches and the creative tab sort. */
+    private static void collectTabs() {
+        Minecraft game = Minecraft.getInstance();
+        if (game.level == null || game.player == null) {
+            return;
+        }
+        try {
+            CreativeModeTabs.tryRebuildTabContents(game.player.connection.enabledFeatures(), false, game.level.registryAccess());
+            Map<Item, String> names = new HashMap<>();
+            Map<Item, Integer> order = new HashMap<>();
+            int position = 0;
+            for (CreativeModeTab tab : CreativeModeTabs.allTabs()) {
+                if (tab.getType() != CreativeModeTab.Type.CATEGORY) {
+                    continue;
+                }
+                String tabName = tab.getDisplayName().getString().toLowerCase(Locale.ROOT);
+                for (ItemStack stack : tab.getDisplayItems()) {
+                    Item item = stack.getItem();
+                    names.merge(item, tabName, (a, b) -> a.contains(b) ? a : a + " " + b);
+                    order.putIfAbsent(item, position++);
+                }
+            }
+            tabNames = names;
+            tabOrder = order;
+        } catch (RuntimeException e) {
+            Bei.LOGGER.warn("Could not read the creative tabs for tab searches", e);
+        }
+    }
+
+    private static void tag(ItemEntry entry) {
+        entry.tabsLower = tabNames.getOrDefault(entry.item, "");
+        entry.tabOrder = tabOrder.getOrDefault(entry.item, Integer.MAX_VALUE);
+        int rgb = -1;
+        if (entry.item instanceof net.minecraft.world.item.BlockItem block) {
+            rgb = block.getBlock().defaultMapColor().col;
+        }
+        entry.colorsLower = ColorNames.of(entry.id + " " + entry.nameLower, rgb);
+    }
+
     private static void build(int mine, List<ItemStack> variants) {
         long start = System.nanoTime();
         List<ItemEntry> built = new ArrayList<>(BuiltInRegistries.ITEM.size());
@@ -97,8 +142,10 @@ public final class ItemIndex {
                 ItemStack stack = item.getDefaultInstance();
                 Set<String> tags = new HashSet<>();
                 item.builtInRegistryHolder().tags().forEach(tag -> tags.add(tag.location().toString()));
-                built.add(new ItemEntry(item, stack, key.toString(), key.getNamespace(),
-                        stack.getHoverName().getString().toLowerCase(Locale.ROOT), tags));
+                ItemEntry made = new ItemEntry(item, stack, key.toString(), key.getNamespace(),
+                        stack.getHoverName().getString().toLowerCase(Locale.ROOT), tags);
+                tag(made);
+                built.add(made);
             } catch (RuntimeException e) {
                 Bei.LOGGER.warn("Skipping {} in the item index", item, e);
             }
@@ -112,8 +159,10 @@ public final class ItemIndex {
                 ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
                 Set<String> tags = new HashSet<>();
                 item.builtInRegistryHolder().tags().forEach(tag -> tags.add(tag.location().toString()));
-                built.add(new ItemEntry(item, variant, key.toString(), key.getNamespace(),
-                        variant.getHoverName().getString().toLowerCase(Locale.ROOT), tags, true));
+                ItemEntry made = new ItemEntry(item, variant, key.toString(), key.getNamespace(),
+                        variant.getHoverName().getString().toLowerCase(Locale.ROOT), tags, true);
+                tag(made);
+                built.add(made);
             } catch (RuntimeException e) {
                 Bei.LOGGER.warn("Skipping a variant of {} in the item index", variant.getItem(), e);
             }

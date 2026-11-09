@@ -19,6 +19,8 @@ import com.itmecasey.bei.client.input.CharacterEvent;
 import com.itmecasey.bei.client.input.KeyEvent;
 import com.itmecasey.bei.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.language.I18n;
+import net.minecraft.core.registries.BuiltInRegistries;
+import com.itmecasey.bei.index.SortOrder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -65,6 +67,7 @@ public final class BrowserPanel {
     private static int cols;
     private static int rows;
     private static int searchY;
+    private static int bookY;
     private static int searchW;
 
     private BrowserPanel() {
@@ -131,7 +134,8 @@ public final class BrowserPanel {
         int trayRow = trayRowFor();
         int room = screen.width - guiRight - 6 - EDGE;
         int fitCols = Math.min(MAX_COLS, (room - 16) / CELL);
-        int fitRows = Math.max(1, (screen.height - 2 * EDGE - 20 - trayRowFor() - 6 - 24 - 4) / CELL);
+        int bookRow = Bookmarks.has() ? CELL + 4 : 0;
+        int fitRows = Math.max(1, (screen.height - 2 * EDGE - 20 - trayRowFor() - 6 - 24 - 4 - bookRow) / CELL);
         cols = BeiConfig.customGrid() ? Math.min(BeiConfig.ingredientColumns(), fitCols) : fitCols;
         rows = BeiConfig.customGrid() ? Math.min(BeiConfig.ingredientRows(), fitRows) : fitRows;
         shown = BeiConfig.showBrowser() && cols >= 1;
@@ -142,7 +146,8 @@ public final class BrowserPanel {
         trayY = panelY + 20;
         gridX = panelX + 8;
         gridY = panelY + 20 + trayRow;
-        searchY = gridY + rows * CELL + 6;
+        bookY = gridY + rows * CELL + 4;
+        searchY = gridY + rows * CELL + 6 + bookRow;
         panelH = searchY + 24 - panelY;
         searchW = panelW - 12 - 22;
     }
@@ -165,13 +170,23 @@ public final class BrowserPanel {
                     }
                 }
             }
-            List<ItemEntry> found = Search.filter(pool, text, chosen == null ? null : chosen.filter);
+            List<ItemEntry> found = sortOrder().sort(Search.filter(pool, text, chosen == null ? null : chosen.filter));
             List<Cell> cells = Groups.cells(found, resolved);
             if (mine == SEARCH_GENERATION.get()) {
                 matchCount = found.size();
                 results = cells;
             }
         });
+    }
+
+    /** How the grid is ordered; saved in the client data. */
+    public static SortOrder sortOrder() {
+        return SortOrder.of(ClientData.string("sort", "creative"));
+    }
+
+    public static void cycleSortOrder() {
+        ClientData.setString("sort", sortOrder().next().key());
+        dirty = true;
     }
 
     /** Runs the search again (the groups or hidden items changed). */
@@ -274,6 +289,9 @@ public final class BrowserPanel {
                     }
                 }
                 graphics.item(stack, x + 1, y + 1);
+                if (EditMode.on() && !cell.isGroup() && EditMode.hidden(cell.item().id)) {
+                    graphics.fill(x, y, x + CELL, y + CELL, 0x80B71C1C);
+                }
                 if (cell.isGroup()) {
                     String count = Integer.toString(cell.group().members.size());
                     graphics.pose().pushMatrix();
@@ -282,6 +300,19 @@ public final class BrowserPanel {
                     graphics.text(font, count, 0, 0, Ui.text(), Ui.shadow());
                     graphics.pose().popMatrix();
                 }
+            }
+        }
+        if (Bookmarks.has()) {
+            List<ItemEntry> marks = Bookmarks.entries();
+            graphics.fill(panelX + 6, bookY - 2, panelX + panelW - 6, bookY - 1, Ui.dim());
+            for (int i = 0; i < marks.size() && i < cols; i++) {
+                int x = gridX + i * CELL;
+                ItemEntry mark = marks.get(i);
+                if (Ui.in(mouseX, mouseY, x, bookY, CELL, CELL)) {
+                    Ui.round(graphics, x, bookY, CELL, CELL, Ui.accentSoft());
+                    hover = mark.stack;
+                }
+                graphics.item(mark.stack, x + 1, bookY + 1);
             }
         }
         if (totalRows > rows) {
@@ -315,7 +346,7 @@ public final class BrowserPanel {
         } else if (Ui.in(mouseX, mouseY, panelX + 6, searchY, searchW, 18)) {
             Ui.tip(graphics, font, List.of(Component.translatable("bei.tip.search_mod"),
                     Component.translatable("bei.tip.search_tag"), Component.translatable("bei.tip.search_tooltip"),
-                    Component.translatable("bei.tip.search_not")), mouseX, mouseY);
+                    Component.translatable("bei.tip.search_not"), Component.translatable("bei.tip.search_more")), mouseX, mouseY);
         } else if (Ui.in(mouseX, mouseY, panelX + 6, panelY + 4, panelW - 12, 14)) {
             Ui.tip(graphics, font, Component.translatable("bei.tip.status"), mouseX, mouseY);
         }
@@ -334,6 +365,13 @@ public final class BrowserPanel {
                 if (index < list.size() && !list.get(index).isGroup()) {
                     return list.get(index).item().stack;
                 }
+            }
+        }
+        if (shown && Bookmarks.has() && mouseY >= bookY && mouseY < bookY + CELL && mouseX >= gridX) {
+            List<ItemEntry> marks = Bookmarks.entries();
+            int index = (int) ((mouseX - gridX) / CELL);
+            if (index < marks.size() && index < cols) {
+                return marks.get(index).stack;
             }
         }
         Slot slot = screen.getSlotUnderMouse();
@@ -394,6 +432,14 @@ public final class BrowserPanel {
             dirty = true;
             return true;
         }
+        if (Bookmarks.has() && Ui.in(x, y, gridX, bookY, cols * CELL, CELL)) {
+            List<ItemEntry> marks = Bookmarks.entries();
+            int index = (int) ((x - gridX) / CELL);
+            if (index >= 0 && index < marks.size()) {
+                itemClicked(marks.get(index).stack, event);
+            }
+            return true;
+        }
         if (Ui.in(x, y, gridX, gridY, cols * CELL, rows * CELL)) {
             List<Cell> list = results;
             int index = (scroll + (int) ((y - gridY) / CELL)) * cols + (int) ((x - gridX) / CELL);
@@ -414,6 +460,12 @@ public final class BrowserPanel {
 
     /** A click on an item: cheat mode gives it, otherwise recipes (left) or uses (right). */
     private static void itemClicked(ItemStack stack, MouseButtonEvent event) {
+        if (EditMode.on()) {
+            if (event.button() == 0) {
+                EditMode.flip(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+            }
+            return;
+        }
         if (Cheats.enabled() && event.button() == 0) {
             Cheats.give(stack.getItem(), net.minecraft.client.gui.screens.Screen.hasShiftDown());
         } else if (event.button() == 0 || event.button() == 1) {
@@ -446,6 +498,10 @@ public final class BrowserPanel {
         ItemStack stack = hovered(screen, Ui.mouseX(), Ui.mouseY());
         if (stack == null) {
             return false;
+        }
+        if (event.key() == GLFW.GLFW_KEY_A) {
+            Bookmarks.toggle(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+            return true;
         }
         if (ClientInit.SHOW_RECIPES.matches(event.key(), event.scancode())) {
             RecipePopup.open(stack.getItem(), false);

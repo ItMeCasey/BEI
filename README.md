@@ -4,6 +4,7 @@ A minimalist, fast item and recipe viewer for Minecraft (Forge and NeoForge). Th
 
 **Features**
 
+- Bookmarks (press A on an item), an edit mode that hides items in game, search prefixes `%` creative tab, `^` color and `&` resource id, and a sort order (creative tab, name, mod).
 - Item browser: opens with every item (and every potion, enchanted book and other variant, with a setting to turn that off), searches in the background (`@mod`, `#tag`, `$tooltip`, `-exclude`), category icons, scrollbar, and groups and hidden items from datapacks. The index builds off the render thread, so opening a screen never waits.
 - Recipe popup: recipes grouped by station (those you can make first), uses lookups, centered 3x3 crafting cards, `P` to make a recipe your project, and `+` to fill the crafting grid, furnace, stonecutter or smithing table from your inventory (Shift for a full stack).
 - Master Blueprint: a dependency tree for any item that checks your inventory (and optionally ender chest and any storage a mod adds), shows the next craft or what to gather, with a percent-done HUD.
@@ -172,7 +173,7 @@ public class MyPlugin implements IBeiPlugin {
 
 BEI embeds JEI's public API (only that; none of JEI's own code) and provides the `jei` mod id with a small recipe-only runtime. It discovers `@JeiPlugin` classes, treats each JEI recipe category as a BEI station, uses the category's catalysts as the station icon and imports item input and output slots. A plugin that needs more of JEI is logged and skipped, and a failure in the bridge switches only the bridge off.
 
-Because BEI provides the `jei` mod id, the real JEI mod cannot be installed next to it; BEI replaces JEI. The plugin's `onRuntimeAvailable` runs with a small runtime that supports hiding item ingredients and recipe categories (what ModJS's recipe viewer events use). Not imported yet: fluid and custom ingredients, JEI recipe transfer, category background drawing and runtime-only recipe additions. Checked in a client with AE2 and AE2 JEI Integration on NeoForge 1.21.1 (7 categories). The other builds start, join a world and load the bridge without errors, but were not tried with a JEI-plugin mod. To build without the bridge, pass `-Pbei_jei_bridge=false`.
+Because BEI provides the `jei` mod id, the real JEI mod cannot be installed next to it; BEI replaces JEI. The plugin's `onRuntimeAvailable` runs with a small runtime that supports hiding item ingredients and recipe categories (what ModJS's recipe viewer events use). Fluids are shown as named buckets, a category draws its own card (textures, animated bars, tooltips), plugin transfer handlers drive the plus button, and `addIngredientInfo` becomes an Information station. What is not supported (JEI's own screens, exclusion zones, ghost-ingredient drags, runtime recipe additions, subtype interpreters) is logged once and listed with reasons in `docs/PORTING.md`. Checked in a client with AE2 and AE2 JEI Integration on NeoForge 1.21.1 (7 categories). The other builds start, join a world and load the bridge without errors, but were not tried with a JEI-plugin mod. To build without the bridge, pass `-Pbei_jei_bridge=false`.
 
 ## ModJS scripts
 
