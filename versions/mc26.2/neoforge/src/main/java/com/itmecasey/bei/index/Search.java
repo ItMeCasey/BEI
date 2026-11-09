@@ -31,7 +31,7 @@ public final class Search {
     private static Predicate<ItemEntry> word(String word) {
         if (word.startsWith("@")) {
             String mod = word.substring(1);
-            return entry -> entry.mod.contains(mod);
+            return entry -> entry.mod.contains(mod) || com.itmecasey.bei.compat.JeiAliases.ofMod(entry.mod).contains(mod);
         }
         if (word.startsWith("#")) {
             String tag = word.substring(1);
@@ -56,6 +56,7 @@ public final class Search {
         }
         // A variant (an enchanted book) is also found by what its tooltip says, once that is read.
         return entry -> entry.nameLower.contains(word) || entry.id.contains(word)
+                || com.itmecasey.bei.compat.JeiAliases.ofItem(entry.id).contains(word)
                 || entry.variant && entry.tooltipLower != null && entry.tooltipLower.contains(word);
     }
 

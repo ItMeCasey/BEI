@@ -127,6 +127,43 @@ public final class ItemIndex {
         entry.colorsLower = ColorNames.of(entry.id + " " + entry.nameLower, rgb);
     }
 
+    private static ItemEntry variantEntry(ItemStack variant) {
+        try {
+            Item item = variant.getItem();
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
+            Set<String> tags = new HashSet<>();
+            item.builtInRegistryHolder().tags().forEach(tag -> tags.add(tag.location().toString()));
+            ItemEntry made = new ItemEntry(item, variant, key.toString(), key.getNamespace(),
+                    variant.getHoverName().getString().toLowerCase(Locale.ROOT), tags, true);
+            tag(made);
+            return made;
+        } catch (RuntimeException e) {
+            Bei.LOGGER.warn("Skipping a variant of {} in the item index", variant.getItem(), e);
+            return null;
+        }
+    }
+
+    /** Lists stacks a JEI plugin asked to add (extra ingredients) once the index is already built. */
+    public static synchronized void addExtras(List<ItemStack> stacks) {
+        if (!ready || stacks.isEmpty()) {
+            return;
+        }
+        List<ItemEntry> merged = new ArrayList<>(entries);
+        Set<String> have = new HashSet<>();
+        for (ItemEntry entry : merged) {
+            if (entry.variant) {
+                have.add(entry.id + "|" + entry.nameLower);
+            }
+        }
+        for (ItemStack stack : stacks) {
+            ItemEntry made = variantEntry(stack);
+            if (made != null && have.add(made.id + "|" + made.nameLower)) {
+                merged.add(made);
+            }
+        }
+        entries = List.copyOf(merged);
+    }
+
     private static void build(int mine, List<ItemStack> variants) {
         long start = System.nanoTime();
         List<ItemEntry> built = new ArrayList<>(BuiltInRegistries.ITEM.size());
@@ -150,21 +187,15 @@ public final class ItemIndex {
                 Bei.LOGGER.warn("Skipping {} in the item index", item, e);
             }
         }
-        for (ItemStack variant : variants) {
+        List<ItemStack> all = new ArrayList<>(variants);
+        all.addAll(com.itmecasey.bei.compat.JeiAliases.extraStacks());
+        for (ItemStack variant : all) {
             if (mine != generation.get()) {
                 return;
             }
-            try {
-                Item item = variant.getItem();
-                ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
-                Set<String> tags = new HashSet<>();
-                item.builtInRegistryHolder().tags().forEach(tag -> tags.add(tag.location().toString()));
-                ItemEntry made = new ItemEntry(item, variant, key.toString(), key.getNamespace(),
-                        variant.getHoverName().getString().toLowerCase(Locale.ROOT), tags, true);
-                tag(made);
+            ItemEntry made = variantEntry(variant);
+            if (made != null) {
                 built.add(made);
-            } catch (RuntimeException e) {
-                Bei.LOGGER.warn("Skipping a variant of {} in the item index", variant.getItem(), e);
             }
         }
         if (mine == generation.get()) {

@@ -83,6 +83,59 @@ public final class RecipeIndex {
         count = recipes.size();
     }
 
+    /** Adds recipes after the index was built (a plugin registered them late); readers keep the maps they hold. */
+    public static synchronized void addRecipes(List<BeiRecipe> recipes) {
+        Map<Item, List<BeiRecipe>> out = copyOf(byOutput);
+        Map<Item, List<BeiRecipe>> in = copyOf(byInput);
+        for (BeiRecipe recipe : recipes) {
+            for (ItemStack stack : recipe.outputs()) {
+                add(out, stack.getItem(), recipe);
+            }
+            for (List<ItemStack> slot : recipe.inputs()) {
+                for (ItemStack stack : slot) {
+                    add(in, stack.getItem(), recipe);
+                }
+            }
+        }
+        byOutput = out;
+        byInput = in;
+        count = count + recipes.size();
+    }
+
+    /** Takes recipes out of the index by id (a plugin hid them late). */
+    public static synchronized void removeRecipes(java.util.Set<String> ids) {
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Item, List<BeiRecipe>> out = new HashMap<>();
+        Map<Item, List<BeiRecipe>> in = new HashMap<>();
+        for (Map.Entry<Item, List<BeiRecipe>> entry : byOutput.entrySet()) {
+            for (BeiRecipe recipe : entry.getValue()) {
+                if (!ids.contains(recipe.id())) {
+                    add(out, entry.getKey(), recipe);
+                }
+            }
+        }
+        for (Map.Entry<Item, List<BeiRecipe>> entry : byInput.entrySet()) {
+            for (BeiRecipe recipe : entry.getValue()) {
+                if (!ids.contains(recipe.id())) {
+                    add(in, entry.getKey(), recipe);
+                }
+            }
+        }
+        byOutput = out;
+        byInput = in;
+        count = Math.max(0, count - ids.size());
+    }
+
+    private static Map<Item, List<BeiRecipe>> copyOf(Map<Item, List<BeiRecipe>> source) {
+        Map<Item, List<BeiRecipe>> copy = new HashMap<>();
+        for (Map.Entry<Item, List<BeiRecipe>> entry : source.entrySet()) {
+            copy.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        }
+        return copy;
+    }
+
     /** Builds the index from plugin recipes alone, for joining a server that sends none; real recipes replace it when they arrive. */
     public static void buildLocal() {
         Thread thread = new Thread(() -> convert(List.of(), null), "BEI-recipes-local");

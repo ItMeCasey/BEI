@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
@@ -38,6 +39,8 @@ final class JeiTransfers {
 
     private static final List<Registered> HANDLERS = new ArrayList<>();
     private static final List<Object> INSTALLED = new ArrayList<>();
+    private static final List<Object> LISTENERS = new ArrayList<>();
+    private static int transferIds;
     /** The last answer for a recipe in a menu, kept briefly because the button is asked about every frame. */
     private record Cached(long at, TransferState state) {
     }
@@ -58,7 +61,16 @@ final class JeiTransfers {
         }
     }
 
+    static synchronized void addListener(Object listener) {
+        LISTENERS.add(listener);
+    }
+
+    static synchronized List<Object> listeners() {
+        return List.copyOf(LISTENERS);
+    }
+
     static synchronized void clear() {
+        LISTENERS.clear();
         HANDLERS.clear();
         CACHE.clear();
     }
@@ -224,7 +236,14 @@ final class JeiTransfers {
             if (transfer == null) {
                 return NOT_RUN;
             }
-            return transfer.invoke(handler, context.menu(), target.recipe(), view, player, context.control(), doTransfer);
+            if (!doTransfer || listeners().isEmpty()) {
+                return transfer.invoke(handler, context.menu(), target.recipe(), view, player, context.control(), doTransfer);
+            }
+            Object transferContext = listenerContext(context, target, view, player);
+            notifyListeners("beforeRecipeTransfer", transferContext, null);
+            Object answer = transfer.invoke(handler, context.menu(), target.recipe(), view, player, context.control(), doTransfer);
+            notifyListeners("afterRecipeTransfer", transferContext, JeiViews.failure(answer) == null ? "SUCCESS" : "REJECTED");
+            return answer;
         } catch (java.lang.reflect.InvocationTargetException e) {
             Bei.LOGGER.warn("A JEI transfer handler failed on {}", context.recipe().id(), e.getCause());
             return NOT_RUN;
@@ -232,6 +251,93 @@ final class JeiTransfers {
             Bei.LOGGER.warn("A JEI transfer handler failed on {}", context.recipe().id(), e);
             return NOT_RUN;
         }
+    }
+
+    /** JEI's transfer context for the listeners: what is being transferred, into which menu, by whom. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Object listenerContext(TransferContext<AbstractContainerMenu> context, Target target, IRecipeSlotsView view, Player player) {
+        Class<?> type = JeiBridge.ifaceClass("mezz.jei.api.recipe.transfer.IRecipeTransferContext");
+        if (type == null) {
+            return null;
+        }
+        int id;
+        synchronized (JeiTransfers.class) {
+            id = ++transferIds;
+        }
+        String uid = target.registered().typeUid();
+        return JeiBridge.proxy((Class) type, (self, method, args) -> switch (method.getName()) {
+            case "getTransferId" -> id;
+            case "getRecipe" -> target.recipe();
+            case "getContainer" -> context.menu();
+            case "getRecipeSlots" -> view;
+            case "getPlayer" -> player;
+            case "isMaxTransfer" -> context.control();
+            case "getScreen" -> Minecraft.getInstance() == null ? null : Minecraft.getInstance().screen;
+            case "getRecipeType" -> {
+                JeiBridge.Bridged bridged = JeiBridge.bridged(context.recipe().id());
+                yield bridged == null ? null : bridged.category().getRecipeType();
+            }
+            default -> JeiBridge.fallback(method.getReturnType());
+        });
+    }
+
+    private static void notifyListeners(String method, Object transferContext, @Nullable String result) {
+        if (transferContext == null) {
+            return;
+        }
+        for (Object listener : listeners()) {
+            Method call = find(listener.getClass(), method, result == null ? 1 : 2);
+            if (call == null) {
+                continue;
+            }
+            try {
+                if (result == null) {
+                    call.invoke(listener, transferContext);
+                } else {
+                    Object value = null;
+                    for (Object constant : call.getParameterTypes()[1].getEnumConstants()) {
+                        if (constant.toString().equals(result)) {
+                            value = constant;
+                        }
+                    }
+                    call.invoke(listener, transferContext, value);
+                }
+            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+                Bei.LOGGER.debug("A JEI transfer listener failed", e);
+            }
+        }
+    }
+
+    /** JEI's transfer manager: finds the handler for a menu and category, and lists the listeners. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    static Object manager(Class<?> type) {
+        return JeiBridge.proxy((Class) type, (self, method, args) -> {
+            if (method.getName().equals("getRecipeTransferListeners")) {
+                return listeners();
+            }
+            if (method.getName().equals("getRecipeTransferHandler") && args.length == 2 && args[1] instanceof mezz.jei.api.recipe.category.IRecipeCategory<?> category) {
+                String uid = category.getRecipeType().getUid().toString();
+                synchronized (JeiTransfers.class) {
+                    for (Registered registered : HANDLERS) {
+                        Method container = find(registered.handler().getClass(), "getContainerClass", 0);
+                        boolean menuMatches = registered.handler() instanceof Basic basic ? basic.menuClass().isInstance(args[0]) : true;
+                        try {
+                            if (container != null) {
+                                menuMatches = ((Class<?>) container.invoke(registered.handler())).isInstance(args[0]);
+                            }
+                        } catch (ReflectiveOperationException | RuntimeException e) {
+                            menuMatches = false;
+                        }
+                        if (menuMatches && (registered.typeUid().isEmpty() || registered.typeUid().equals(uid))
+                                && !(registered.handler() instanceof Basic)) {
+                            return Optional.of(registered.handler());
+                        }
+                    }
+                }
+                return Optional.empty();
+            }
+            return JeiBridge.fallback(method.getReturnType());
+        });
     }
 
     /** Looks up a method by name on an object's class, for the few JEI calls whose signature differs between versions. */

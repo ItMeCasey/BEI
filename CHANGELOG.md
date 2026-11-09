@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026.11.12 (all ten builds)
+
+Zero unsupported JEI calls that BEI can answer. Plugins now get working answers where they used to get a log line.
+
+- JEI bridge: input reaches a plugin's card. Buttons, cycle buttons, scroll boxes and grids, slotted widgets, input handlers, GUI event listeners and tooltip areas take clicks, drags, releases and the mouse wheel inside the card, and show their tooltips. `createWidgetFromDrawable`, `createScrollBoxWidget`, `createScrollGridFactory` and `createRecipeSlotDrawable` on the GUI helper work.
+- JEI bridge: slot overlays, custom slot renderers, slot tooltip callbacks (extra lines for the item in a slot), focus links and the transfer button position are used on the card.
+- JEI bridge: recipe manager. Plugins can build recipe layout drawables, slot drawables and ingredient suppliers; recipe manager plugins add recipes and answer focused lookups; recipes added or hidden after the index is built reach it at once. Category decorators draw over a card and change its tooltip; recipe button factories add a button to the card.
+- JEI bridge: ingredient registry. Custom ingredient types keep their helper, renderer, codec and ingredients; the ingredient manager answers type lookups, typed and clickable ingredients, aliases and listeners, and listeners hear runtime additions and removals.
+- JEI bridge: search. Ingredient aliases (also as translation keys) and mod aliases widen the search; extra ingredients are added to the item list.
+- JEI bridge: vanilla category extensions (crafting, cooking, smithing, brewing) lay out game recipes on 1.20.1 and 1.21.1. On 26.x the client keeps no recipe objects, so they have no effect there.
+- JEI bridge: transfer listeners, the transfer manager, key mappings and the config manager answer for plugins.
+- 1.20.1: GUI sprite drawables look for the sprite as a plain texture (`textures/gui/sprites/NAME.png`) and stretch it.
+- `bei-api`: `CardPainter` gains `paintOverlay`, `mouseClicked`, `mouseReleased`, `mouseDragged`, `mouseScrolled`, `slotTooltip` and `transferButton` (all with defaults, so existing painters keep working). Publish new API jars.
+- Unit tests cover the new parts (card widgets, aliases, the ingredient registry, manager plugins, decorators, listeners, extensions, late recipes).
+- Still not done: a replacement search storage from `registerAdvancedSearch` is kept but BEI's search is its own; the layout drawable's `drawOverlays` does not draw tooltips; vanilla category extensions need recipe objects, so they do nothing on 26.x.
+
 ## 2026.11.11 (all ten builds)
 
 - JEI bridge: exclusion zones. A JEI plugin's extra areas next to a machine screen (the side panels of Applied Energistics, for example) now keep the browser panel out of the way: it starts to the right of them.

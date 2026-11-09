@@ -420,6 +420,7 @@ public final class RecipePopup {
                 y += h + CARD_GAP;
             }
             g.disableScissor();
+            pumpCapture(mx, my);
             if (total > viewport) {
                 int thumb = Math.max(10, viewport * viewport / total);
                 int thumbY = bodyTop + (viewport - thumb) * scroll / (total - viewport);
@@ -460,7 +461,15 @@ public final class RecipePopup {
             }
             for (Hit hit : HITS) {
                 if (Ui.in(mx, my, hit.x(), hit.y(), 16, 16)) {
-                    Ui.tip(g, font, hit.stack(), mx, my);
+                    List<Component> extra = slotLines(mx, my, hit.stack());
+                    if (extra.isEmpty()) {
+                        Ui.tip(g, font, hit.stack(), mx, my);
+                    } else {
+                        List<Component> lines = new ArrayList<>();
+                        lines.add(hit.stack().getHoverName());
+                        lines.addAll(extra);
+                        Ui.tip(g, font, lines, mx, my);
+                    }
                     return;
                 }
             }
@@ -554,6 +563,16 @@ public final class RecipePopup {
                 inputIndex++;
             }
         }
+        if (painter != null) {
+            g.pose().pushMatrix();
+            g.pose().translate(ox, oy);
+            try {
+                painter.paintOverlay(g.graphics(), recipe.custom(), frameMouseX - ox, frameMouseY - oy);
+            } catch (RuntimeException e) {
+                // A broken painter only loses its overlay.
+            }
+            g.pose().popMatrix();
+        }
     }
 
     /** P (Master Project) over + (auto-fill), bottom right of a card. */
@@ -564,6 +583,15 @@ public final class RecipePopup {
         int bx = x + w - 15;
         int plusY = y + h - 15;
         int projectY = plusY - 14;
+        var cardCategory = recipe.category();
+        if (cardCategory != null && cardCategory.painter() != null) {
+            int[] wanted = cardCategory.painter().transferButton(recipe.custom());
+            if (wanted != null) {
+                bx = x + (w - cardCategory.width()) / 2 + wanted[0];
+                plusY = y + 15 + wanted[1];
+                projectY = plusY - 14;
+            }
+        }
         boolean active = isProjectRecipe(recipe);
         Ui.round(g, bx, projectY, 12, 12, active ? Ui.accent() : Ui.cardHover());
         g.text(font, "P", bx + 3, projectY + 2, active ? Ui.onAccent() : Ui.text(), false);
@@ -603,6 +631,87 @@ public final class RecipePopup {
     }
 
     // ---- input ----------------------------------------------------------------------------------
+
+    // ---- input forwarded to a plugin's card (buttons, scroll boxes, widgets) ---------------------------
+
+    private static @Nullable CustomArea capture;
+    private static int captureButton;
+    private static double captureX;
+    private static double captureY;
+
+    private static @Nullable CustomArea customAreaAt(double mx, double my) {
+        for (int i = CUSTOM.size() - 1; i >= 0; i--) {
+            CustomArea area = CUSTOM.get(i);
+            var category = area.recipe().category();
+            if (Ui.in(mx, my, area.x(), area.y(), category.width(), category.height())) {
+                return area;
+            }
+        }
+        return null;
+    }
+
+    /** Hands a click inside a custom card to its painter; true when the painter used it. */
+    private static boolean forwardClick(double mx, double my, int button) {
+        CustomArea area = customAreaAt(mx, my);
+        if (area == null || area.recipe().category().painter() == null) {
+            return false;
+        }
+        try {
+            if (area.recipe().category().painter().mouseClicked(area.recipe().custom(), (int) (mx - area.x()), (int) (my - area.y()), button)) {
+                capture = area;
+                captureButton = button;
+                captureX = mx;
+                captureY = my;
+                return true;
+            }
+        } catch (RuntimeException e) {
+            // A broken painter only loses its input.
+        }
+        return false;
+    }
+
+    /** While a plugin's part holds the mouse, passes drags to it and the release when the button comes up. */
+    private static void pumpCapture(int mx, int my) {
+        CustomArea held = capture;
+        if (held == null) {
+            return;
+        }
+        var painter = held.recipe().category().painter();
+        if (painter == null) {
+            capture = null;
+            return;
+        }
+        try {
+            if (Ui.leftDown()) {
+                double dx = mx - captureX;
+                double dy = my - captureY;
+                if (dx != 0 || dy != 0) {
+                    painter.mouseDragged(held.recipe().custom(), mx - held.x(), my - held.y(), captureButton, dx, dy);
+                }
+                captureX = mx;
+                captureY = my;
+            } else {
+                painter.mouseReleased(held.recipe().custom(), mx - held.x(), my - held.y(), captureButton);
+                capture = null;
+            }
+        } catch (RuntimeException e) {
+            capture = null;
+        }
+    }
+
+    /** Extra tooltip lines a plugin's card adds for an item in one of its slots. */
+    private static List<Component> slotLines(double mx, double my, ItemStack stack) {
+        CustomArea area = customAreaAt(mx, my);
+        if (area == null || area.recipe().category().painter() == null) {
+            return List.of();
+        }
+        try {
+            List<Component> extra = area.recipe().category().painter().slotTooltip(area.recipe().custom(), stack);
+            return extra == null ? List.of() : extra;
+        } catch (RuntimeException e) {
+            return List.of();
+        }
+    }
 
     private static @Nullable ItemStack hovered(double mx, double my) {
         if (!Ui.in(mx, my, POS.x(), bodyTop, pw, bodyBottom - bodyTop)) {
@@ -668,6 +777,9 @@ public final class RecipePopup {
                 }
             }
         }
+        if (forwardClick(mx, my, event.button())) {
+            return true;
+        }
         ItemStack stack = hovered(mx, my);
         if (stack != null && (event.button() == 0 || event.button() == 1)) {
             open(stack.getItem(), event.button() == 1);
@@ -707,6 +819,16 @@ public final class RecipePopup {
     public static boolean mouseScrolled(double deltaY) {
         if (!isOpen()) {
             return false;
+        }
+        CustomArea over = customAreaAt(frameMouseX, frameMouseY);
+        if (over != null && over.recipe().category().painter() != null) {
+            try {
+                if (over.recipe().category().painter().mouseScrolled(over.recipe().custom(), frameMouseX - over.x(), frameMouseY - over.y(), deltaY)) {
+                    return true;
+                }
+            } catch (RuntimeException e) {
+                // A broken painter only loses its scrolling.
+            }
         }
         scroll -= (int) Math.signum(deltaY) * 20;
         return true;

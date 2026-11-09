@@ -76,6 +76,14 @@ public final class JeiHooks {
         return (List<BeiRecipe>) call("contribute", new Class<?>[0], new Object[0], List.of());
     }
 
+    /** The game recipe as a plugin's category extension lays it out, or null when no extension covers it. */
+    public static BeiRecipe extended(Object holder, BeiRecipe current) {
+        if (current == null) {
+            return null;
+        }
+        return (BeiRecipe) call("extended", new Class<?>[] {Object.class, BeiRecipe.class}, new Object[] {holder, current}, null);
+    }
+
     public static boolean handlesRecipeType(String recipeType) {
         return (Boolean) call("handlesRecipeType", new Class<?>[] {String.class}, new Object[] {recipeType}, Boolean.FALSE);
     }

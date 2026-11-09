@@ -72,13 +72,39 @@ public final class JeiBridge {
     private static List<IModPlugin> plugins = List.of();
     private static boolean loaded;
     /** The BEI recipes made from JEI recipes, by id: what a category's draw call and a transfer handler work on. */
-    record Bridged(String typeUid, IRecipeCategory<?> category, Object recipe, List<JeiViews.SlotSpec> slots, List<Drawer> extras) {
+    record Bridged(String typeUid, IRecipeCategory<?> category, Object recipe, List<JeiViews.SlotSpec> slots, List<Drawer> extras,
+            List<Drawer> overlays, List<LayoutSlot> layoutSlots, int[] buttonAt) {
+        Bridged(String typeUid, IRecipeCategory<?> category, Object recipe, List<JeiViews.SlotSpec> slots, List<Drawer> extras) {
+            this(typeUid, category, recipe, slots, extras, new ArrayList<>(), new ArrayList<>(), new int[] {-1, -1});
+        }
     }
 
     /** Something a category's createRecipeExtras added; draws itself on the card. */
     @FunctionalInterface
     interface Drawer {
         void draw(Object graphics, int mouseX, int mouseY) throws ReflectiveOperationException;
+
+        /** A mouse button went down at card coordinates; true when this part used the click. */
+        default boolean click(int mouseX, int mouseY, int button) {
+            return false;
+        }
+
+        default boolean release(int mouseX, int mouseY, int button) {
+            return false;
+        }
+
+        default boolean drag(int mouseX, int mouseY, int button, double dragX, double dragY) {
+            return false;
+        }
+
+        default boolean scroll(int mouseX, int mouseY, double delta) {
+            return false;
+        }
+
+        /** Tooltip lines when the mouse is over this part, or null. */
+        default @org.jetbrains.annotations.Nullable List<Component> tooltip(int mouseX, int mouseY) {
+            return null;
+        }
     }
 
     private static final Map<String, Bridged> BRIDGED = new LinkedHashMap<>();
@@ -100,16 +126,38 @@ public final class JeiBridge {
     }
 
     private static final List<Info> INFO = new ArrayList<>();
+    /** A plugin's extension for how one vanilla recipe class is shown (crafting, cooking, smithing, brewing). */
+    private record Extension(String kind, Class<?> recipeClass, Object extension) {
+    }
+
+    private static final List<Extension> EXTENSIONS = new ArrayList<>();
     private static final java.util.Set<String> UNSUPPORTED = ConcurrentHashMap.newKeySet();
 
     static synchronized Bridged bridged(String id) {
         return BRIDGED.get(id);
     }
 
+    static @org.jetbrains.annotations.Nullable Class<?> ifaceClass(String name) {
+        try {
+            return Class.forName(name, false, JeiBridge.class.getClassLoader());
+        } catch (ClassNotFoundException | LinkageError e) {
+            return null;
+        }
+    }
+
+    /** Whether the stack is the crafting station a plugin registered for a recipe type. */
+    static synchronized boolean isStation(RecipeType<?> type, ItemStack stack) {
+        ItemStack station = STATIONS.get(type);
+        return station != null && !stack.isEmpty() && ItemStack.isSameItem(station, stack);
+    }
+
+    /** Set once the recipes have been handed to BEI's index; recipes plugins add after that go in one by one. */
+    private static boolean contributed;
+
     private static final java.util.Map<String, java.lang.reflect.Method> IFACE_METHODS = new ConcurrentHashMap<>();
 
     /** A method of a JEI interface by name and parameter count, so it is called through the public interface. */
-    private static @org.jetbrains.annotations.Nullable Method ifaceMethod(String type, String name, int parameters) {
+    static @org.jetbrains.annotations.Nullable Method ifaceMethod(String type, String name, int parameters) {
         return IFACE_METHODS.computeIfAbsent(type + "#" + name + "#" + parameters, key -> {
             try {
                 return JeiTransfers.find(Class.forName(type, false, JeiBridge.class.getClassLoader()), name, parameters);
@@ -301,6 +349,16 @@ public final class JeiBridge {
         (ghost ? GHOST_HANDLERS : CONTAINER_HANDLERS).add(new GuiHandler(screenClass, handler));
     }
 
+    /** Registers a vanilla category extension by hand (unit tests). */
+    static synchronized void putExtension(String kind, Class<?> recipeClass, Object extension) {
+        EXTENSIONS.add(new Extension(kind, recipeClass, extension));
+    }
+
+    /** Marks recipes as handed to the index, so later additions go in one by one (unit tests). */
+    static synchronized void putContributed(boolean value) {
+        contributed = value;
+    }
+
     /** Registers a bridged recipe by hand (unit tests). */
     static synchronized void putBridged(String id, Bridged bridged) {
         BRIDGED.put(id, bridged);
@@ -315,7 +373,9 @@ public final class JeiBridge {
             "IRuntimeRegistration.setIngredientFilter", "IRecipeRegistration.getIngredientManager",
             "IRecipeRegistration.getIngredientVisibility", "IRecipeCatalystRegistration.getIngredientManager",
             "IModIngredientRegistration.getSubtypeManager", "IModIngredientRegistration.getColorHelper",
-            "IAdvancedRegistration.getJeiFeatures", "IAdvancedRegistration.getRecipeManagerPluginHelper");
+            "IAdvancedRegistration.getJeiFeatures", "IAdvancedRegistration.getRecipeManagerPluginHelper",
+            "IRuntimeRegistration.getSearchStorageFactory", "IRuntimeRegistration.getSearchStorageBuilderFactory",
+            "IAdvancedSearchRegistration.getDefaultSearchStorageBuilderFactory");
 
     static void unsupported(Class<?> type, Method method) {
         if (ACCEPTED.contains(type.getSimpleName() + "." + method.getName())) {
@@ -357,6 +417,9 @@ public final class JeiBridge {
         GHOST_HANDLERS.clear();
         CLICK_AREAS.clear();
         HIDDEN_RECIPES.clear();
+        EXTENSIONS.clear();
+        JeiRegistry.clear();
+        contributed = false;
         plugins = List.of();
         JeiHidden.clear();
         JeiTransfers.clear();
@@ -431,12 +494,41 @@ public final class JeiBridge {
             }
             if (method.getName().equals("register") && args.length >= 3 && args[0] instanceof IIngredientType<?> type) {
                 HELPERS.put(type, args[2]);
+                JeiRegistry.registerType(args);
                 return null;
             }
             unsupported(IModIngredientRegistration.class, method);
             return fluentOrDefault(self, method);
         });
-        IVanillaCategoryExtensionRegistration extensions = stub(IVanillaCategoryExtensionRegistration.class, helpers);
+        IVanillaCategoryExtensionRegistration extensions = proxy(IVanillaCategoryExtensionRegistration.class, (self, method, args) -> {
+            String name = method.getName();
+            String kind = switch (name) {
+                case "getCraftingCategory" -> "crafting";
+                case "getSmeltingCategory", "getBlastingCategory", "getSmokingCategory", "getCampfireCookingCategory" -> "cooking";
+                case "getSmithingCategory" -> "smithing";
+                case "getBrewingCategory" -> "brewing";
+                default -> null;
+            };
+            if (name.equals("getJeiHelpers")) {
+                return helpers;
+            }
+            if (name.equals("addCookingCategoryExtension") && args.length == 2 && args[0] instanceof Class<?> recipeClass) {
+                EXTENSIONS.add(new Extension("cooking", recipeClass, args[1]));
+                return null;
+            }
+            if (kind == null) {
+                unsupported(IVanillaCategoryExtensionRegistration.class, method);
+                return fluentOrDefault(self, method);
+            }
+            return proxy(method.getReturnType(), (inner, call, callArgs) -> {
+                if (call.getName().equals("addExtension") && callArgs.length == 2 && callArgs[0] instanceof Class<?> recipeClass) {
+                    EXTENSIONS.add(new Extension(kind, recipeClass, callArgs[1]));
+                    return null;
+                }
+                unsupported(method.getReturnType(), call);
+                return fluentOrDefault(inner, call);
+            });
+        });
         IRecipeTransferRegistration transfers = proxy(IRecipeTransferRegistration.class,
                 (self, method, args) -> transferCall(method, args, helpers));
         IGuiHandlerRegistration guiHandlers = proxy(IGuiHandlerRegistration.class, (self, method, args) -> {
@@ -475,8 +567,24 @@ public final class JeiBridge {
                     return fluentOrDefault(self, method);
             }
         });
-        IAdvancedRegistration advanced = stub(IAdvancedRegistration.class, helpers);
-        IRuntimeRegistration runtimeRegistration = stub(IRuntimeRegistration.class, helpers);
+        IAdvancedRegistration advanced = JeiRegistry.advanced(helpers);
+        IJeiRuntime early = runtime(helpers);
+        IRuntimeRegistration runtimeRegistration = proxy(IRuntimeRegistration.class, (self, method, args) -> {
+            switch (method.getName()) {
+                case "getJeiHelpers":
+                    return helpers;
+                case "getRecipeManager":
+                case "getIngredientManager":
+                case "getScreenHelper":
+                case "getRecipeTransferManager":
+                case "getEditModeConfig":
+                case "getIngredientVisibility":
+                    return JeiCards.call(early, method.getName());
+                default:
+                    unsupported(IRuntimeRegistration.class, method);
+                    return fluentOrDefault(self, method);
+            }
+        });
         // JEI runs each phase for every plugin before the next phase starts.
         phase("item subtypes", plugin -> plugin.registerItemSubtypes(subtypes));
         phase("ingredients", plugin -> plugin.registerIngredients(ingredientTypes));
@@ -488,9 +596,13 @@ public final class JeiBridge {
         phase("gui handlers", plugin -> plugin.registerGuiHandlers(guiHandlers));
         phase("advanced", plugin -> plugin.registerAdvanced(advanced));
         phase("runtime registration", plugin -> plugin.registerRuntime(runtimeRegistration));
+        mergeManagerPlugins();
         for (String name : List.of("registerFluidSubtypes", "registerExtraIngredients", "registerIngredientAliases", "registerModInfo",
                 "registerAdvancedSearch", "configureJei", "onConfigManagerAvailable")) {
             reflectivePhase(name, helpers);
+        }
+        if (JeiAliases.hasExtra()) {
+            com.itmecasey.bei.index.ItemIndex.addExtras(JeiAliases.extraStacks());
         }
         JeiTransfers.install();
         IJeiRuntime runtime = runtime(helpers);
@@ -523,7 +635,11 @@ public final class JeiBridge {
                         usable = false;
                         break;
                     }
-                    args[i] = proxy(type, (self, call, callArgs) -> {
+                    Object special = JeiRegistry.searchRegistration(type, helpers);
+                    if (special == null && type.getSimpleName().equals("IJeiConfigManager")) {
+                        special = JeiRegistry.configManager(type);
+                    }
+                    args[i] = special != null ? special : proxy(type, (self, call, callArgs) -> {
                         if (call.getName().equals("getJeiHelpers")) {
                             return helpers;
                         }
@@ -572,6 +688,11 @@ public final class JeiBridge {
                 }
                 unsupported(IRecipeTransferRegistration.class, method);
                 return null;
+            case "addRecipeTransferListener":
+                if (args.length == 1 && args[0] != null) {
+                    JeiTransfers.addListener(args[0]);
+                }
+                return null;
             case "addUniversalRecipeTransferHandler":
                 if (args.length >= 1 && args[0] != null && JeiTransfers.find(args[0].getClass(), "transferRecipe", 6) != null) {
                     JeiTransfers.add(args[0], "");
@@ -605,19 +726,39 @@ public final class JeiBridge {
                 return categoryLookup();
             }
             if (method.getName().equals("addRecipes") && args.length == 2 && args[0] instanceof RecipeType<?> type) {
-                // Recipes added while the runtime starts are indexed with the others, which are built right after.
-                RECIPES.computeIfAbsent(type, key -> new ArrayList<>()).addAll(values(args[1]));
+                // Recipes added while the runtime starts are indexed with the others, which are built right after;
+                // later ones are bridged and added to the index straight away.
+                addLate(type, values(args[1]));
                 return null;
             }
             if ((method.getName().equals("hideRecipes") || method.getName().equals("unhideRecipes")) && args.length == 2
                     && args[0] instanceof RecipeType<?> type) {
                 List<Object> shown = RECIPES.computeIfAbsent(type, key -> new ArrayList<>());
                 List<Object> hidden = HIDDEN_RECIPES.computeIfAbsent(type, key -> new ArrayList<>());
+                List<Object> changed = new ArrayList<>();
                 for (Object recipe : values(args[1])) {
                     if (method.getName().equals("hideRecipes") && shown.remove(recipe)) {
                         hidden.add(recipe);
+                        changed.add(recipe);
                     } else if (method.getName().equals("unhideRecipes") && hidden.remove(recipe)) {
                         shown.add(recipe);
+                        changed.add(recipe);
+                    }
+                }
+                if (contributed && !changed.isEmpty()) {
+                    synchronized (JeiBridge.class) {
+                        if (method.getName().equals("hideRecipes")) {
+                            java.util.Set<String> ids = new HashSet<>();
+                            for (Map.Entry<String, Bridged> entry : BRIDGED.entrySet()) {
+                                if (changed.contains(entry.getValue().recipe())) {
+                                    ids.add(entry.getKey());
+                                }
+                            }
+                            BRIDGED.keySet().removeAll(ids);
+                            com.itmecasey.bei.index.RecipeIndex.removeRecipes(ids);
+                        } else {
+                            bridgeLate(type, changed);
+                        }
                     }
                 }
                 return null;
@@ -635,9 +776,26 @@ public final class JeiBridge {
                 return Optional.empty();
             }
             if (method.getName().equals("createRecipeLookup") && args[0] instanceof RecipeType<?> type) {
-                List<Object> all = List.copyOf(RECIPES.getOrDefault(type, List.of()));
-                return proxy(IRecipeLookup.class, (inner, call, callArgs) ->
-                        call.getName().equals("get") ? all.stream() : fluentOrDefault(inner, call));
+                return recipeLookup(type);
+            }
+            if (method.getName().startsWith("createRecipeLayoutDrawable") && args.length >= 2
+                    && args[0] instanceof IRecipeCategory<?> category) {
+                Bridged made = assemble(category.getRecipeType(), category, args[1], "jei/drawable");
+                Class<?> layoutType = ifaceClass("mezz.jei.api.gui.IRecipeLayoutDrawable");
+                Object drawable = layoutType == null ? null : JeiRegistry.layoutDrawable(layoutType, category, made);
+                return method.getReturnType() == Optional.class ? Optional.ofNullable(drawable) : drawable;
+            }
+            if (method.getName().equals("createRecipeSlotDrawable") && args.length >= 2) {
+                return JeiRegistry.slotDrawable(method.getReturnType(), args);
+            }
+            if (method.getName().equals("getRecipeIngredients") && args.length >= 2 && args[0] instanceof IRecipeCategory<?> category) {
+                Bridged made = assemble(category.getRecipeType(), category, args[1], "jei/ingredients");
+                return JeiRegistry.ingredientSupplier(method.getReturnType(), made, args.length > 2 && args[2] instanceof Set<?> roles ? roles : null);
+            }
+            if (method.getName().equals("getRecipeButtonControllerFactories")) {
+                synchronized (JeiBridge.class) {
+                    return List.copyOf(JeiRegistry.BUTTON_FACTORIES);
+                }
             }
             if (method.getName().equals("createRecipeCatalystLookup") && args[0] instanceof RecipeType<?> type) {
                 ItemStack station = STATIONS.get(type);
@@ -651,40 +809,7 @@ public final class JeiBridge {
             unsupported(IRecipeManager.class, method);
             return fallback(method.getReturnType());
         });
-        IIngredientManager ingredients = proxy(IIngredientManager.class, (self, method, args) -> {
-            String name = method.getName();
-            if ((name.equals("removeIngredientsAtRuntime") || name.equals("addIngredientsAtRuntime")) && args.length >= 2) {
-                boolean hide = name.equals("removeIngredientsAtRuntime");
-                int count = 0;
-                for (Object value : values(args[args.length - 1])) {
-                    ItemStack stack = item(value);
-                    if (!stack.isEmpty()) {
-                        String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
-                        if (hide ? JeiHidden.hideItem(id) : JeiHidden.showItem(id)) {
-                            count++;
-                        }
-                    }
-                }
-                if (count > 0) {
-                    Bei.LOGGER.debug("A JEI plugin {} {} item(s)", hide ? "hid" : "showed", count);
-                }
-                return null;
-            }
-            if (name.equals("getAllIngredients") && args.length == 1 && args[0] == mezz.jei.api.constants.VanillaTypes.ITEM_STACK) {
-                return allItemStacks();
-            }
-            if (name.equals("getAllIngredients") || name.equals("getAllTypedIngredients")
-                    || name.equals("getRegisteredIngredientTypes")) {
-                return List.of();
-            }
-            if ((name.equals("getIngredientType") || name.equals("getIngredientTypeChecked")) && args.length == 1
-                    && args[0] instanceof ItemStack) {
-                return name.equals("getIngredientType") ? mezz.jei.api.constants.VanillaTypes.ITEM_STACK
-                        : Optional.of(mezz.jei.api.constants.VanillaTypes.ITEM_STACK);
-            }
-            unsupported(IIngredientManager.class, method);
-            return fallback(method.getReturnType());
-        });
+        IIngredientManager ingredients = JeiRegistry.ingredientManager();
         return proxyFirst(IJeiRuntime.class, (self, method, args) -> {
             switch (method.getName()) {
                 case "getRecipeManager":
@@ -693,6 +818,12 @@ public final class JeiBridge {
                     return ingredients;
                 case "getJeiHelpers":
                     return helpers;
+                case "getKeyMappings":
+                    return JeiRegistry.keyMappings(method.getReturnType());
+                case "getConfigManager":
+                    return JeiRegistry.configManager(method.getReturnType());
+                case "getRecipeTransferManager":
+                    return JeiTransfers.manager(method.getReturnType());
                 default:
                     Object adapter = JeiScreens.adapter(method.getReturnType(), helpers);
                     if (adapter != null) {
@@ -710,7 +841,7 @@ public final class JeiBridge {
     private static volatile List<ItemStack> itemStacks;
 
     /** Every item as a default stack, for plugins that walk the ingredient list. */
-    private static List<ItemStack> allItemStacks() {
+    static List<ItemStack> allItemStacks() {
         List<ItemStack> all = itemStacks;
         if (all == null) {
             all = new ArrayList<>();
@@ -724,10 +855,78 @@ public final class JeiBridge {
         return all;
     }
 
+    /** A recipe lookup: the category's recipes, narrowed to what the plugins' manager plugins add for a focus. */
+    private static IRecipeLookup<?> recipeLookup(RecipeType<?> type) {
+        java.util.Collection<Object> focuses = new ArrayList<>();
+        boolean[] hiddenToo = {false};
+        return proxy(IRecipeLookup.class, (inner, call, callArgs) -> {
+            switch (call.getName()) {
+                case "limitFocus":
+                    focuses.addAll(values(callArgs[0]));
+                    return inner;
+                case "includeHidden":
+                    hiddenToo[0] = true;
+                    return inner;
+                case "get": {
+                    List<Object> all = new ArrayList<>(RECIPES.getOrDefault(type, List.of()));
+                    if (hiddenToo[0]) {
+                        all.addAll(HIDDEN_RECIPES.getOrDefault(type, List.of()));
+                    }
+                    for (Object extra : JeiRegistry.focusedRecipes(type, CATEGORIES.get(type), focuses)) {
+                        if (!all.contains(extra)) {
+                            all.add(extra);
+                        }
+                    }
+                    return all.stream();
+                }
+                default:
+                    return fluentOrDefault(inner, call);
+            }
+        });
+    }
+
+    /** Recipe manager plugins can add recipes to categories on their own; ask them once the plugins have registered. */
+    private static void mergeManagerPlugins() {
+        for (Map.Entry<RecipeType<?>, IRecipeCategory<?>> entry : CATEGORIES.entrySet()) {
+            List<Object> known = RECIPES.computeIfAbsent(entry.getKey(), key -> new ArrayList<>());
+            known.addAll(JeiRegistry.pluginRecipes(entry.getKey(), entry.getValue(), known));
+        }
+    }
+
+    /** Adds recipes a plugin registered after BEI built its index. */
+    private static synchronized void addLate(RecipeType<?> type, List<Object> added) {
+        List<Object> known = RECIPES.computeIfAbsent(type, key -> new ArrayList<>());
+        int first = known.size();
+        known.addAll(added);
+        if (contributed) {
+            bridgeLate(type, added, first);
+        }
+    }
+
+    private static void bridgeLate(RecipeType<?> type, List<Object> added) {
+        bridgeLate(type, added, RECIPES.getOrDefault(type, List.of()).size());
+    }
+
+    private static void bridgeLate(RecipeType<?> type, List<Object> added, int first) {
+        IRecipeCategory<?> category = CATEGORIES.get(type);
+        if (category == null || added.isEmpty()) {
+            return;
+        }
+        List<BeiRecipe> out = new ArrayList<>();
+        try {
+            bridgeCategory(type, category, added, out, first);
+        } catch (RuntimeException | LinkageError e) {
+            Bei.LOGGER.warn("Could not bridge late JEI recipes of {}", type.getUid(), e);
+            return;
+        }
+        com.itmecasey.bei.index.RecipeIndex.addRecipes(out);
+    }
+
     public static synchronized List<BeiRecipe> contribute() {
         if (!loaded) {
             return List.of();
         }
+        contributed = true;
         BRIDGED.clear();
         List<BeiRecipe> out = new ArrayList<>();
         int pages = 0;
@@ -758,7 +957,13 @@ public final class JeiBridge {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void bridgeCategory(RecipeType<?> type, IRecipeCategory category, List<Object> recipes,
             List<BeiRecipe> out) {
-        List<LayoutSlot> first = layout(category, recipes.get(0), new ArrayList<>());
+        bridgeCategory(type, category, recipes, out, 0);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void bridgeCategory(RecipeType<?> type, IRecipeCategory category, List<Object> recipes,
+            List<BeiRecipe> out, int firstNumber) {
+        List<LayoutSlot> first = layout(category, recipes.get(0), new ArrayList<>(), new ArrayList<>(), new int[] {-1, -1});
         ItemStack station = STATIONS.get(type);
         if ((station == null || station.isEmpty()) && ICONS.containsKey(category.getIcon())) {
             station = ICONS.get(category.getIcon());
@@ -767,9 +972,7 @@ public final class JeiBridge {
             Bei.LOGGER.debug("JEI category {} has no item catalyst; it cannot be a BEI station", type.getUid());
             return;
         }
-        CardPainter painter = JeiDrawables.painter(
-                (g, custom, mx, my) -> paintBridged(category, custom, g, mx, my),
-                (custom, mx, my) -> tooltipBridged(category, custom, mx, my));
+        CardPainter painter = JeiDrawables.painter(new CardBehavior(category));
         RecipeCategory.Builder builder = RecipeCategory.builder(type.getUid())
                 .title(category.getTitle())
                 .station(station.copy())
@@ -783,21 +986,10 @@ public final class JeiBridge {
             }
         }
         RecipeCategory beiCategory = builder.build();
-        int number = 0;
+        int number = firstNumber;
         for (Object recipe : recipes) {
-            List<Drawer> extras = new ArrayList<>();
-            List<LayoutSlot> slots = layout(category, recipe, extras);
-            for (LayoutSlot slot : slots) {
-                if (slot.background != null) {
-                    // The slot's own background drawable, under the item the card draws there.
-                    extras.add((g, mx, my) -> drawAt(slot.background, g, slot.x + slot.backgroundX, slot.y + slot.backgroundY));
-                }
-                if (slot.role != RecipeIngredientRole.INPUT && slot.role != RecipeIngredientRole.OUTPUT && !slot.items.isEmpty()) {
-                    // A catalyst or display-only slot is not consumed or made, so the card just draws what it shows.
-                    extras.add((g, mx, my) -> JeiDrawables.item(g,
-                            slot.items.get((int) (System.currentTimeMillis() / 1000 % slot.items.size())), slot.x + 1, slot.y + 1));
-                }
-            }
+            Bridged made = assemble(type, category, recipe, null);
+            List<LayoutSlot> slots = made.layoutSlots();
             CustomRecipe.Builder converted = CustomRecipe.builder().id(recipeId(category, recipe, type, number++));
             for (LayoutSlot slot : slots) {
                 if (slot.role == RecipeIngredientRole.INPUT) {
@@ -817,42 +1009,103 @@ public final class JeiBridge {
             }
             if (output) {
                 CustomRecipe custom = converted.data(recipe).build();
-                List<JeiViews.SlotSpec> specs = new ArrayList<>();
-                for (LayoutSlot slot : slots) {
-                    specs.add(new JeiViews.SlotSpec(slot.role, List.copyOf(slot.items), slot.name));
-                }
-                BRIDGED.put(custom.id(), new Bridged(type.getUid().toString(), category, recipe, specs, extras));
+                BRIDGED.put(custom.id(), made);
                 out.add(new BeiRecipe(custom.id(), type.getUid().toString(), 0, custom.inputs(), custom.outputs(),
                         List.of(station.copy()), beiCategory, custom));
             }
         }
     }
 
+    /** Lays one recipe out: its slots, the parts its category draws, slot backgrounds and any plugin buttons. */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static List<LayoutSlot> layout(IRecipeCategory category, Object recipe, List<Drawer> extras) {
+    private static Bridged assemble(RecipeType<?> type, IRecipeCategory category, Object recipe, String unused) {
+        List<Drawer> extras = new ArrayList<>();
+        List<Drawer> overlays = new ArrayList<>();
+        int[] buttonAt = {-1, -1};
+        List<LayoutSlot> slots = layout(category, recipe, extras, overlays, buttonAt);
+        for (LayoutSlot slot : slots) {
+            if (slot.background != null) {
+                // The slot's own background drawable, under the item the card draws there.
+                extras.add((g, mx, my) -> drawAt(slot.background, g, slot.x + slot.backgroundX, slot.y + slot.backgroundY));
+            }
+            if (slot.role != RecipeIngredientRole.INPUT && slot.role != RecipeIngredientRole.OUTPUT && !slot.items.isEmpty()) {
+                // A catalyst or display-only slot is not consumed or made, so the card just draws what it shows.
+                extras.add((g, mx, my) -> JeiDrawables.item(g,
+                        slot.items.get((int) (System.currentTimeMillis() / 1000 % slot.items.size())), slot.x + 1, slot.y + 1));
+            }
+        }
+        List<JeiViews.SlotSpec> specs = new ArrayList<>();
+        for (LayoutSlot slot : slots) {
+            specs.add(new JeiViews.SlotSpec(slot.role, List.copyOf(slot.items), slot.name));
+        }
+        Bridged made = new Bridged(type.getUid().toString(), category, recipe, specs, extras, overlays, slots, buttonAt);
+        JeiRegistry.addButtons(category, made);
+        return made;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static List<LayoutSlot> layout(IRecipeCategory category, Object recipe, List<Drawer> extras, List<Drawer> overlays, int[] buttonAt) {
         List<LayoutSlot> slots = new ArrayList<>();
-        IRecipeLayoutBuilder builder = proxy(IRecipeLayoutBuilder.class, (self, method, args) -> {
+        List<Object[]> slotted = new ArrayList<>();
+        IRecipeLayoutBuilder builder = layoutBuilder(slots, slotted, buttonAt);
+        category.setRecipe(builder, recipe, emptyFocuses());
+        collectExtras(category, recipe, slots, extras, slotted);
+        for (LayoutSlot slot : slots) {
+            slot.addOverlays(overlays, extras);
+        }
+        return slots;
+    }
+
+    /** A recipe layout builder that collects the slots a category or extension adds. */
+    private static IRecipeLayoutBuilder layoutBuilder(List<LayoutSlot> slots, List<Object[]> slotted, int[] buttonAt) {
+        return proxy(IRecipeLayoutBuilder.class, (self, method, args) -> {
             if (method.getName().equals("addSlot")) {
                 LayoutSlot slot = new LayoutSlot((RecipeIngredientRole) args[0]);
                 slots.add(slot);
                 return slot.proxy();
+            }
+            if (method.getName().equals("moveRecipeTransferButton") && args.length == 2) {
+                buttonAt[0] = (int) args[0];
+                buttonAt[1] = (int) args[1];
+                return null;
+            }
+            if (method.getName().equals("addSlotToWidget") && args.length == 2) {
+                LayoutSlot slot = new LayoutSlot((RecipeIngredientRole) args[0]);
+                slots.add(slot);
+                slotted.add(new Object[] {slot, args[1]});
+                return slot.proxy();
+            }
+            if (method.getName().equals("createFocusLink") || method.getName().equals("setShapeless")) {
+                // BEI cycles every slot on one clock, so linked slots stay in step; shape is read from the recipe itself.
+                return null;
             }
             if (method.getName().equals("addInvisibleIngredients")) {
                 return new LayoutSlot((RecipeIngredientRole) args[0]).proxy();
             }
             return fluentOrDefault(self, method);
         });
-        category.setRecipe(builder, recipe, emptyFocuses());
-        collectExtras(category, recipe, extras);
-        return slots;
     }
 
     /** Runs the category's createRecipeExtras (JEI 19 and later) and keeps what it adds as things to draw. */
-    private static void collectExtras(Object category, Object recipe, List<Drawer> extras) {
+    private static void collectExtras(Object category, Object recipe, List<LayoutSlot> slots, List<Drawer> extras, List<Object[]> slotted) {
         try {
             Class<?> builderType = Class.forName("mezz.jei.api.gui.widgets.IRecipeExtrasBuilder", false, JeiBridge.class.getClassLoader());
             Method create = JeiTransfers.find(category.getClass(), "createRecipeExtras", 3);
             if (create == null) {
+                return;
+            }
+            Object partsBuilder = JeiCards.extrasBuilder(builderType, extras, slots);
+            if (partsBuilder != null) {
+                create.invoke(category, partsBuilder, recipe, emptyFocuses());
+                Method widgetFactory = ifaceMethod("mezz.jei.api.gui.widgets.ISlottedWidgetFactory", "createWidgetForSlots", 3);
+                Class<?> drawableType = Class.forName("mezz.jei.api.gui.ingredient.IRecipeSlotDrawable", false, JeiBridge.class.getClassLoader());
+                for (Object[] pair : slotted) {
+                    LayoutSlot slot = (LayoutSlot) pair[0];
+                    if (widgetFactory != null) {
+                        List<Object> one = List.of(JeiCards.slotDrawable(drawableType, new JeiViews.SlotSpec(slot.role, List.copyOf(slot.items), slot.name), slot.x, slot.y, new ArrayList<>()));
+                        widgetFactory.invoke(pair[1], partsBuilder, recipe, one);
+                    }
+                }
                 return;
             }
             Object builder = proxy(builderType, (self, method, args) -> {
@@ -920,8 +1173,11 @@ public final class JeiBridge {
         }
     }
 
-    private static void drawAt(Object drawable, Object g, int x, int y) throws ReflectiveOperationException {
-        Method draw = JeiTransfers.find(drawable.getClass(), "draw", 3);
+    static void drawAt(Object drawable, Object g, int x, int y) throws ReflectiveOperationException {
+        Method draw = ifaceMethod("mezz.jei.api.gui.drawable.IDrawable", "draw", 3);
+        if (draw == null) {
+            draw = JeiTransfers.find(drawable.getClass(), "draw", 3);
+        }
         if (draw != null) {
             draw.invoke(drawable, g, x, y);
         }
@@ -947,12 +1203,157 @@ public final class JeiBridge {
 
     private static final java.util.Set<String> DRAW_FAILED = ConcurrentHashMap.newKeySet();
 
+    /** What a bridged category does on BEI's card: draw, take the mouse, add tooltips, place the transfer button. */
+    private static final class CardBehavior implements JeiDrawables.Behavior {
+        private final IRecipeCategory<?> category;
+
+        CardBehavior(IRecipeCategory<?> category) {
+            this.category = category;
+        }
+
+        @Override
+        public void paint(Object g, com.itmecasey.bei.api.CustomRecipe custom, int mx, int my) {
+            paintBridged(category, custom, g, mx, my);
+        }
+
+        @Override
+        public void overlay(Object g, com.itmecasey.bei.api.CustomRecipe custom, int mx, int my) {
+            Bridged bridged = bridged(custom.id());
+            if (bridged == null) {
+                return;
+            }
+            for (Drawer overlay : bridged.overlays()) {
+                try {
+                    overlay.draw(g, mx, my);
+                } catch (ReflectiveOperationException | RuntimeException e) {
+                    // A slot overlay that fails is skipped.
+                }
+            }
+        }
+
+        @Override
+        public @org.jetbrains.annotations.Nullable List<Component> tooltip(com.itmecasey.bei.api.CustomRecipe custom, int mx, int my) {
+            return tooltipBridged(category, custom, mx, my);
+        }
+
+        @Override
+        public boolean click(com.itmecasey.bei.api.CustomRecipe custom, int mx, int my, int button) {
+            Bridged bridged = bridged(custom.id());
+            if (bridged == null) {
+                return false;
+            }
+            List<Drawer> parts = bridged.extras();
+            for (int i = parts.size() - 1; i >= 0; i--) {
+                if (parts.get(i).click(mx, my, button)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public boolean release(com.itmecasey.bei.api.CustomRecipe custom, int mx, int my, int button) {
+            Bridged bridged = bridged(custom.id());
+            boolean used = false;
+            if (bridged != null) {
+                for (Drawer part : bridged.extras()) {
+                    used |= part.release(mx, my, button);
+                }
+            }
+            return used;
+        }
+
+        @Override
+        public boolean drag(com.itmecasey.bei.api.CustomRecipe custom, int mx, int my, int button, double dx, double dy) {
+            Bridged bridged = bridged(custom.id());
+            boolean used = false;
+            if (bridged != null) {
+                for (Drawer part : bridged.extras()) {
+                    used |= part.drag(mx, my, button, dx, dy);
+                }
+            }
+            return used;
+        }
+
+        @Override
+        public boolean scroll(com.itmecasey.bei.api.CustomRecipe custom, int mx, int my, double delta) {
+            Bridged bridged = bridged(custom.id());
+            if (bridged == null) {
+                return false;
+            }
+            List<Drawer> parts = bridged.extras();
+            for (int i = parts.size() - 1; i >= 0; i--) {
+                if (parts.get(i).scroll(mx, my, delta)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public @org.jetbrains.annotations.Nullable List<Component> slotTooltip(com.itmecasey.bei.api.CustomRecipe custom, ItemStack stack) {
+            return slotTooltipBridged(custom, stack);
+        }
+
+        @Override
+        public int @org.jetbrains.annotations.Nullable [] transferButton(com.itmecasey.bei.api.CustomRecipe custom) {
+            Bridged bridged = bridged(custom.id());
+            return bridged == null || bridged.buttonAt()[0] < 0 ? null : new int[] {bridged.buttonAt()[0], bridged.buttonAt()[1]};
+        }
+    }
+
+    /** Extra tooltip lines a plugin's slot tooltip callbacks add for an item shown in one of the card's slots. */
+    private static @org.jetbrains.annotations.Nullable List<Component> slotTooltipBridged(com.itmecasey.bei.api.CustomRecipe custom, ItemStack stack) {
+        Bridged bridged = bridged(custom.id());
+        if (bridged == null) {
+            return null;
+        }
+        List<Component> lines = new ArrayList<>();
+        for (int i = 0; i < bridged.layoutSlots().size(); i++) {
+            LayoutSlot slot = bridged.layoutSlots().get(i);
+            boolean shows = false;
+            for (ItemStack shown : slot.items) {
+                shows |= ItemStack.isSameItem(shown, stack);
+            }
+            if (!shows || slot.tooltipCallbacks.isEmpty()) {
+                continue;
+            }
+            Object view = JeiViews.slot(bridged.slots().get(i));
+            for (Object callback : slot.tooltipCallbacks) {
+                Method legacy = ifaceMethod("mezz.jei.api.gui.ingredient.IRecipeSlotTooltipCallback", "onTooltip", 2);
+                Method rich = ifaceMethod("mezz.jei.api.gui.ingredient.IRecipeSlotRichTooltipCallback", "onRichTooltip", 2);
+                try {
+                    if (rich != null && JeiTransfers.find(callback.getClass(), "onRichTooltip", 2) != null) {
+                        Object builder = proxy(rich.getParameterTypes()[1], (self, method, args) -> {
+                            for (Object arg : args) {
+                                if (arg instanceof net.minecraft.network.chat.FormattedText text) {
+                                    lines.add(text instanceof Component c ? c : Component.literal(text.getString()));
+                                }
+                            }
+                            return fluentOrDefault(self, method);
+                        });
+                        rich.invoke(callback, view, builder);
+                    } else if (legacy != null && JeiTransfers.find(callback.getClass(), "onTooltip", 2) != null) {
+                        legacy.invoke(callback, view, lines);
+                    }
+                } catch (ReflectiveOperationException | RuntimeException e) {
+                    Bei.LOGGER.debug("A JEI slot tooltip callback failed", e);
+                }
+            }
+        }
+        return lines.isEmpty() ? null : lines;
+    }
+
     /** The category's own drawing on BEI's card: its background, its draw call and what its recipe extras added. */
     private static void paintBridged(IRecipeCategory<?> category, com.itmecasey.bei.api.CustomRecipe custom, Object g, int mx, int my) {
         Bridged bridged = bridged(custom.id());
         if (bridged == null) {
             return;
         }
+        paintCore(category, bridged, g, mx, my);
+    }
+
+    static void paintCore(IRecipeCategory<?> category, Bridged bridged, Object g, int mx, int my) {
         try {
             IRecipeSlotsView view = JeiViews.slots(bridged.slots());
             Method background = JeiTransfers.find(category.getClass(), "getBackground", 0);
@@ -969,6 +1370,7 @@ public final class JeiBridge {
             for (Drawer extra : bridged.extras()) {
                 extra.draw(g, mx, my);
             }
+            JeiRegistry.decoratePaint(category, bridged.recipe(), view, g, mx, my);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             if (DRAW_FAILED.add(category.getRecipeType().getUid().toString())) {
                 Bei.LOGGER.warn("A JEI category's drawing failed; its card is drawn without it: {}", category.getRecipeType().getUid(), e);
@@ -981,6 +1383,13 @@ public final class JeiBridge {
         Bridged bridged = bridged(custom.id());
         if (bridged == null) {
             return null;
+        }
+        List<Drawer> parts = bridged.extras();
+        for (int i = parts.size() - 1; i >= 0; i--) {
+            List<Component> fromPart = parts.get(i).tooltip(mx, my);
+            if (fromPart != null && !fromPart.isEmpty()) {
+                return fromPart;
+            }
         }
         List<Component> lines = new ArrayList<>();
         try {
@@ -1014,6 +1423,8 @@ public final class JeiBridge {
                 });
                 builderMethod.invoke(category, builder, bridged.recipe(), view, (double) mx, (double) my);
             }
+            lines.clear();
+            lines.addAll(JeiRegistry.decorateTooltip(category, bridged.recipe(), view, mx, my, new ArrayList<>(lines)));
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             return null;
         }
@@ -1210,6 +1621,13 @@ public final class JeiBridge {
                 default:
                     break;
             }
+            if (method.getName().equals("createRecipeSlotDrawable") && args.length >= 2) {
+                return JeiRegistry.slotDrawable(method.getReturnType(), args);
+            }
+            Object widget = JeiCards.guiWidget(method, args);
+            if (widget != null) {
+                return widget;
+            }
             unsupported(IGuiHelper.class, method);
             if (IDrawable.class.isAssignableFrom(method.getReturnType())) {
                 // The caller expects this exact subtype (animated, scrollable, ...), so build that one.
@@ -1242,7 +1660,7 @@ public final class JeiBridge {
         });
     }
 
-    private static IFocusGroup emptyFocuses() {
+    static IFocusGroup emptyFocuses() {
         return proxy(IFocusGroup.class, (self, method, args) -> switch (method.getName()) {
             case "isEmpty" -> true;
             case "getAllFocuses" -> List.of();
@@ -1385,6 +1803,91 @@ public final class JeiBridge {
     }
 
     /** The game recipe a BEI recipe id names, as the object JEI hands to its handlers; null when the client has none. */
+    /**
+     * The game recipe laid out the way a plugin's category extension says, or null when no extension covers it. The
+     * holder is the game's recipe holder (or the recipe itself on versions without holders).
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static synchronized BeiRecipe extended(Object holder, BeiRecipe current) {
+        if (EXTENSIONS.isEmpty() || holder == null || current == null) {
+            return null;
+        }
+        Object recipe = JeiCards.call(holder, "value");
+        if (recipe == null) {
+            recipe = holder;
+        }
+        for (Extension ext : EXTENSIONS) {
+            if (!ext.recipeClass().isInstance(recipe)) {
+                continue;
+            }
+            Method setRecipe = null;
+            for (Method method : ext.extension().getClass().getMethods()) {
+                if (method.getName().equals("setRecipe") && method.getParameterCount() >= 3
+                        && (setRecipe == null || method.getParameterCount() > setRecipe.getParameterCount())) {
+                    setRecipe = method;
+                }
+            }
+            if (setRecipe == null) {
+                continue;
+            }
+            List<LayoutSlot> slots = new ArrayList<>();
+            IRecipeLayoutBuilder builder = layoutBuilder(slots, new ArrayList<>(), new int[] {-1, -1});
+            Object[] args = new Object[setRecipe.getParameterCount()];
+            for (int i = 0; i < args.length; i++) {
+                Class<?> want = setRecipe.getParameterTypes()[i];
+                if (want.isInstance(builder)) {
+                    args[i] = builder;
+                } else if (want.getSimpleName().equals("ICraftingGridHelper")) {
+                    args[i] = craftingGridHelper(want);
+                } else if (want.getSimpleName().equals("IFocusGroup")) {
+                    args[i] = emptyFocuses();
+                } else if (want.isInstance(holder)) {
+                    args[i] = holder;
+                } else if (want.isInstance(recipe)) {
+                    args[i] = recipe;
+                }
+            }
+            try {
+                setRecipe.invoke(ext.extension(), args);
+            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+                Bei.LOGGER.debug("A JEI category extension failed on {}", current.id(), e);
+                continue;
+            }
+            List<List<ItemStack>> inputs = new ArrayList<>();
+            List<ItemStack> outputs = new ArrayList<>();
+            for (LayoutSlot slot : slots) {
+                if (slot.role() == RecipeIngredientRole.INPUT) {
+                    inputs.add(List.copyOf(slot.items()));
+                } else if (slot.role() == RecipeIngredientRole.OUTPUT) {
+                    for (ItemStack stack : slot.items()) {
+                        if (!stack.isEmpty()) {
+                            outputs.add(stack.copy());
+                        }
+                    }
+                }
+            }
+            if (outputs.isEmpty()) {
+                continue;
+            }
+            int width = 0;
+            if (ext.kind().equals("crafting")) {
+                Object w = JeiCards.call(ext.extension(), "getWidth", holder);
+                if (!(w instanceof Integer)) {
+                    w = JeiCards.call(ext.extension(), "getWidth");
+                }
+                width = w instanceof Integer number ? Math.max(0, number) : 0;
+            }
+            String type = switch (ext.kind()) {
+                case "crafting" -> width > 0 ? "ShapedCrafting" : "ShapelessCrafting";
+                case "cooking" -> "Furnace";
+                case "smithing" -> "Smithing";
+                default -> current.type();
+            };
+            return new BeiRecipe(current.id(), type, width, inputs, outputs, current.stations(), null, null, current.recipeType());
+        }
+        return null;
+    }
+
     static Object vanillaRecipe(com.itmecasey.bei.api.TransferRecipe recipe) {
         var connection = net.minecraft.client.Minecraft.getInstance().getConnection();
         ResourceLocation key = ResourceLocation.tryParse(recipe.id());
@@ -1516,9 +2019,42 @@ public final class JeiBridge {
         Object invoke(Object self, Method method, Object[] args) throws Throwable;
     }
 
-    private static final class LayoutSlot {
+    static final class LayoutSlot {
         private final RecipeIngredientRole role;
         private final List<ItemStack> items = new ArrayList<>();
+        private final List<Object> originals = new ArrayList<>();
+        private final List<Object> tooltipCallbacks = new ArrayList<>();
+        private Object overlay;
+        private int overlayX;
+        private int overlayY;
+        private Object renderer;
+        private Object rendererType;
+        private long fluidCapacity = -1;
+        private boolean fluidShowCapacity;
+        private int fluidWidth = 16;
+        private int fluidHeight = 16;
+        private boolean outputBackground;
+
+        RecipeIngredientRole role() {
+            return role;
+        }
+
+        List<ItemStack> items() {
+            return items;
+        }
+
+        String name() {
+            return name;
+        }
+
+        int x() {
+            return x;
+        }
+
+        int y() {
+            return y;
+        }
+
         private String name;
         private Object background;
         private int backgroundX;
@@ -1526,16 +2062,55 @@ public final class JeiBridge {
         private int x;
         private int y;
 
-        private LayoutSlot(RecipeIngredientRole role) {
+        LayoutSlot(RecipeIngredientRole role) {
             this.role = role;
         }
 
-        private IRecipeSlotBuilder proxy() {
+        IRecipeSlotBuilder proxy() {
             return JeiBridge.proxy(IRecipeSlotBuilder.class, (self, method, args) -> {
                 switch (method.getName()) {
                     case "setPosition" -> {
                         x = (int) args[0];
                         y = (int) args[1];
+                        if (args.length == 6) {
+                            // Aligned inside a box: the slot is 18 by 18.
+                            int width = (int) args[2];
+                            int height = (int) args[3];
+                            String horizontal = String.valueOf(args[4]);
+                            String vertical = String.valueOf(args[5]);
+                            x += horizontal.equals("CENTER") ? (width - 18) / 2 : horizontal.equals("RIGHT") ? width - 18 : 0;
+                            y += vertical.equals("CENTER") ? (height - 18) / 2 : vertical.equals("BOTTOM") ? height - 18 : 0;
+                        }
+                    }
+                    case "setOverlay" -> {
+                        if (args.length == 3 && args[0] != null) {
+                            overlay = args[0];
+                            overlayX = (int) args[1];
+                            overlayY = (int) args[2];
+                        }
+                    }
+                    case "setCustomRenderer" -> {
+                        if (args.length == 2) {
+                            rendererType = args[0];
+                            renderer = args[1];
+                        }
+                    }
+                    case "setFluidRenderer" -> {
+                        if (args.length >= 4) {
+                            fluidCapacity = ((Number) args[0]).longValue();
+                            fluidShowCapacity = Boolean.TRUE.equals(args[1]);
+                            fluidWidth = ((Number) args[2]).intValue();
+                            fluidHeight = ((Number) args[3]).intValue();
+                        }
+                    }
+                    case "addTooltipCallback", "addRichTooltipCallback" -> {
+                        if (args.length == 1 && args[0] != null) {
+                            tooltipCallbacks.add(args[0]);
+                        }
+                    }
+                    case "setOutputSlotBackground" -> outputBackground = true;
+                    case "setStandardSlotBackground", "setHoverPadding" -> {
+                        // BEI draws its own slot box and hover.
                     }
                     case "setSlotName" -> name = args.length > 0 && args[0] instanceof String text ? text : null;
                     case "setBackground" -> {
@@ -1577,6 +2152,43 @@ public final class JeiBridge {
             ItemStack stack = item(value);
             if (!stack.isEmpty()) {
                 items.add(stack.copy());
+                originals.add(value);
+            }
+        }
+
+        /**
+         * The things a slot draws besides its item: an output background (under the item) and an overlay, a custom
+         * renderer or a fluid level (over it).
+         */
+        void addOverlays(List<Drawer> overlays, List<Drawer> under) {
+            LayoutSlot slot = this;
+            if (outputBackground) {
+                under.add((g, mx, my) -> JeiDrawables.drawStatic(JeiDrawables.outputSlot(), g, slot.x - 4, slot.y - 4, 0, 0, 0, 0));
+            }
+            if (renderer != null && !originals.isEmpty()) {
+                Method render = JeiTransfers.find(renderer.getClass(), "render", 2);
+                if (render != null) {
+                    overlays.add((g, mx, my) -> JeiDrawables.translated(g, slot.x + 1, slot.y + 1, () -> {
+                        try {
+                            render.invoke(slot.renderer, g, slot.originals.get((int) (System.currentTimeMillis() / 1000 % slot.originals.size())));
+                        } catch (ReflectiveOperationException | RuntimeException e) {
+                            // A renderer that fails leaves the item showing.
+                        }
+                    }));
+                }
+            }
+            if (fluidCapacity > 0 && !originals.isEmpty()) {
+                overlays.add((g, mx, my) -> {
+                    Object first = slot.originals.get(0);
+                    long amount = JeiCards.call(first, "getAmount") instanceof Number n ? n.longValue() : slot.fluidCapacity;
+                    int filled = (int) Math.max(1, Math.min(slot.fluidHeight, slot.fluidHeight * amount / Math.max(1, slot.fluidCapacity)));
+                    String id = String.valueOf(first).toLowerCase(java.util.Locale.ROOT);
+                    int color = id.contains("lava") ? 0xCCE87A1C : 0xCC3F76E4;
+                    JeiDrawables.fill(g, slot.x + 1, slot.y + 1 + slot.fluidHeight - filled, slot.x + 1 + slot.fluidWidth, slot.y + 1 + slot.fluidHeight, color);
+                });
+            }
+            if (overlay != null) {
+                overlays.add((g, mx, my) -> drawAt(slot.overlay, g, slot.x + slot.overlayX, slot.y + slot.overlayY));
             }
         }
     }

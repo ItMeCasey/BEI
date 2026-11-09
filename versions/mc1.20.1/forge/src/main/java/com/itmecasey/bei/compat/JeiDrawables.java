@@ -36,7 +36,12 @@ final class JeiDrawables {
     /** A GUI sprite (from the game's GUI atlas) stretched to the area. */
     static void sprite(Object g, ResourceLocation sprite, int x, int y, int w, int h) {
         if (w > 0 && h > 0) {
-            // This version has no GUI sprite blit; the area stays empty.
+            // This version has no GUI sprite atlas: look for the sprite as a plain texture in the 1.21 layout
+            // (textures/gui/sprites/NAME.png) and stretch it; without one the area stays empty.
+            ResourceLocation file = new ResourceLocation(sprite.getNamespace(), "textures/gui/sprites/" + sprite.getPath() + ".png");
+            if (net.minecraft.client.Minecraft.getInstance().getResourceManager().getResource(file).isPresent()) {
+                ((GuiGraphics) g).blit(file, x, y, w, h, 0f, 0f, w, h, w, h);
+            }
         }
     }
 
@@ -55,6 +60,60 @@ final class JeiDrawables {
         }
     }
 
+    static void scissor(Object g, int x1, int y1, int x2, int y2) {
+        ((GuiGraphics) g).enableScissor(x1, y1, x2, y2);
+    }
+
+    static void unscissor(Object g) {
+        ((GuiGraphics) g).disableScissor();
+    }
+
+    static void textLine(Object g, net.minecraft.util.FormattedCharSequence line, int x, int y, int color, boolean shadow) {
+        ((GuiGraphics) g).drawString(net.minecraft.client.Minecraft.getInstance().font, line, x, y, color, shadow);
+    }
+
+    static void drawSlotBackground(Object g, int x, int y) {
+        fill(g, x, y, x + 18, y + 18, 0xFF373737);
+        fill(g, x + 1, y + 1, x + 18, y + 18, 0xFFFFFFFF);
+        fill(g, x + 1, y + 1, x + 17, y + 17, 0xFF8B8B8B);
+    }
+
+    /** How tall these lines are when wrapped to the width. */
+    static int textHeight(List<net.minecraft.network.chat.FormattedText> lines, int width, int spacing) {
+        var font = net.minecraft.client.Minecraft.getInstance().font;
+        int rows = 0;
+        for (net.minecraft.network.chat.FormattedText line : lines) {
+            rows += font.split(line, Math.max(1, width)).size();
+        }
+        return rows * (font.lineHeight + spacing);
+    }
+
+    /** Wrapped, aligned text in a box (the alignments are the names LEFT/CENTER/RIGHT and TOP/CENTER/BOTTOM). */
+    static void textBox(Object g, List<net.minecraft.network.chat.FormattedText> lines, int x, int y, int w, int h, int color,
+            boolean shadow, int spacing, String horizontal, String vertical) {
+        var font = net.minecraft.client.Minecraft.getInstance().font;
+        List<net.minecraft.util.FormattedCharSequence> rows = new java.util.ArrayList<>();
+        for (net.minecraft.network.chat.FormattedText line : lines) {
+            rows.addAll(font.split(line, Math.max(1, w)));
+        }
+        int total = rows.size() * (font.lineHeight + spacing) - (rows.isEmpty() ? 0 : spacing);
+        int row = switch (vertical) {
+            case "CENTER" -> y + (h - total) / 2;
+            case "BOTTOM" -> y + h - total;
+            default -> y;
+        };
+        for (net.minecraft.util.FormattedCharSequence line : rows) {
+            int width = font.width(line);
+            int left = switch (horizontal) {
+                case "CENTER" -> x + (w - width) / 2;
+                case "RIGHT" -> x + w - width;
+                default -> x;
+            };
+            textLine(g, line, left, row, color, shadow);
+            row += font.lineHeight + spacing;
+        }
+    }
+
     static void translated(Object g, int x, int y, Runnable action) {
         var pose = ((GuiGraphics) g).pose();
         pose.pushPose();
@@ -66,33 +125,85 @@ final class JeiDrawables {
         }
     }
 
-    @FunctionalInterface
-    interface Paint {
+    /** What a bridged category does on its card; {@link #painter} wraps it in this version's CardPainter types. */
+    interface Behavior {
         void paint(Object graphics, CustomRecipe recipe, int mouseX, int mouseY);
+
+        void overlay(Object graphics, CustomRecipe recipe, int mouseX, int mouseY);
+
+        @Nullable List<Component> tooltip(CustomRecipe recipe, int mouseX, int mouseY);
+
+        boolean click(CustomRecipe recipe, int mouseX, int mouseY, int button);
+
+        boolean release(CustomRecipe recipe, int mouseX, int mouseY, int button);
+
+        boolean drag(CustomRecipe recipe, int mouseX, int mouseY, int button, double dragX, double dragY);
+
+        boolean scroll(CustomRecipe recipe, int mouseX, int mouseY, double scroll);
+
+        @Nullable List<Component> slotTooltip(CustomRecipe recipe, ItemStack stack);
+
+        int @Nullable [] transferButton(CustomRecipe recipe);
     }
 
-    @FunctionalInterface
-    interface Tip {
-        @Nullable List<Component> tip(CustomRecipe recipe, int mouseX, int mouseY);
-    }
-
-    /** A card painter whose parameter types are this version's drawing classes. */
-    static CardPainter painter(Paint paint, Tip tip) {
+    static CardPainter painter(Behavior behavior) {
         return new CardPainter() {
             @Override
             public void paint(GuiGraphics graphics, CustomRecipe recipe, int mouseX, int mouseY) {
-                paint.paint(graphics, recipe, mouseX, mouseY);
+                behavior.paint(graphics, recipe, mouseX, mouseY);
+            }
+
+            @Override
+            public void paintOverlay(GuiGraphics graphics, CustomRecipe recipe, int mouseX, int mouseY) {
+                behavior.overlay(graphics, recipe, mouseX, mouseY);
             }
 
             @Override
             public @Nullable List<Component> tooltip(CustomRecipe recipe, int mouseX, int mouseY) {
-                return tip.tip(recipe, mouseX, mouseY);
+                return behavior.tooltip(recipe, mouseX, mouseY);
+            }
+
+            @Override
+            public boolean mouseClicked(CustomRecipe recipe, int mouseX, int mouseY, int button) {
+                return behavior.click(recipe, mouseX, mouseY, button);
+            }
+
+            @Override
+            public boolean mouseReleased(CustomRecipe recipe, int mouseX, int mouseY, int button) {
+                return behavior.release(recipe, mouseX, mouseY, button);
+            }
+
+            @Override
+            public boolean mouseDragged(CustomRecipe recipe, int mouseX, int mouseY, int button, double dragX, double dragY) {
+                return behavior.drag(recipe, mouseX, mouseY, button, dragX, dragY);
+            }
+
+            @Override
+            public boolean mouseScrolled(CustomRecipe recipe, int mouseX, int mouseY, double scroll) {
+                return behavior.scroll(recipe, mouseX, mouseY, scroll);
+            }
+
+            @Override
+            public @Nullable List<Component> slotTooltip(CustomRecipe recipe, ItemStack stack) {
+                return behavior.slotTooltip(recipe, stack);
+            }
+
+            @Override
+            public int @Nullable [] transferButton(CustomRecipe recipe) {
+                return behavior.transferButton(recipe);
             }
         };
     }
 
     static void fill(Object g, int x1, int y1, int x2, int y2, int color) {
         ((GuiGraphics) g).fill(x1, y1, x2, y2, color);
+    }
+
+    /** A small plain button: dark frame, lighter face when hovered or pressed, dimmed when not active. */
+    static void button(Object g, int x, int y, int w, int h, boolean active, boolean lit) {
+        int face = !active ? 0xFF3A3A3A : lit ? 0xFF7A7A8C : 0xFF5A5A66;
+        fill(g, x, y, x + w, y + h, 0xFF101014);
+        fill(g, x + 1, y + 1, x + w - 1, y + h - 1, face);
     }
 
     // ---- the drawables --------------------------------------------------------------------------------

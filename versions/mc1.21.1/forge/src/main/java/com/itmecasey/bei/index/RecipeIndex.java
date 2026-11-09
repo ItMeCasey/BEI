@@ -78,6 +78,52 @@ public final class RecipeIndex {
         count = recipes.size();
     }
 
+    /** Adds recipes after the index was built (a plugin registered them late); readers keep the maps they hold. */
+    public static synchronized void addRecipes(List<BeiRecipe> recipes) {
+        Map<Item, List<BeiRecipe>> out = copyOf(byOutput);
+        Map<Item, List<BeiRecipe>> in = copyOf(byInput);
+        for (BeiRecipe recipe : recipes) {
+            index(recipe, out, in);
+        }
+        byOutput = out;
+        byInput = in;
+        count = count + recipes.size();
+    }
+
+    /** Takes recipes out of the index by id (a plugin hid them late). */
+    public static synchronized void removeRecipes(java.util.Set<String> ids) {
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Item, List<BeiRecipe>> out = new HashMap<>();
+        Map<Item, List<BeiRecipe>> in = new HashMap<>();
+        for (Map.Entry<Item, List<BeiRecipe>> entry : byOutput.entrySet()) {
+            for (BeiRecipe recipe : entry.getValue()) {
+                if (!ids.contains(recipe.id())) {
+                    add(out, entry.getKey(), recipe);
+                }
+            }
+        }
+        for (Map.Entry<Item, List<BeiRecipe>> entry : byInput.entrySet()) {
+            for (BeiRecipe recipe : entry.getValue()) {
+                if (!ids.contains(recipe.id())) {
+                    add(in, entry.getKey(), recipe);
+                }
+            }
+        }
+        byOutput = out;
+        byInput = in;
+        count = Math.max(0, count - ids.size());
+    }
+
+    private static Map<Item, List<BeiRecipe>> copyOf(Map<Item, List<BeiRecipe>> source) {
+        Map<Item, List<BeiRecipe>> copy = new HashMap<>();
+        for (Map.Entry<Item, List<BeiRecipe>> entry : source.entrySet()) {
+            copy.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        }
+        return copy;
+    }
+
     /** Builds the index from plugin recipes alone, before the game's recipes have arrived. */
     public static void buildLocal() {
         start(null, null);
@@ -107,6 +153,10 @@ public final class RecipeIndex {
         for (RecipeHolder<?> holder : holders) {
             try {
                 BeiRecipe recipe = convert(holder, access);
+                BeiRecipe extended = com.itmecasey.bei.compat.JeiHooks.extended(holder, recipe);
+                if (extended != null) {
+                    recipe = extended;
+                }
                 if (recipe == null || com.itmecasey.bei.compat.ModJsCompat.hiddenCategory(recipe)) {
                     continue;
                 }
