@@ -1,13 +1,16 @@
+// NeoForge 1.20.1 still runs on Forge's SRG names, and its 47.1 line is a fork of Forge 47.1, so this build compiles against
+// Forge 47.1.x with ForgeGradle and reobfuscates the jar to those names. (NeoGradle 7 does not reobfuscate, so a jar built
+// with it only worked in a development run.) The jar loads on NeoForge 47.1.106 because it uses only the shared API.
 plugins {
     id 'java'
     id 'idea'
     id 'eclipse'
-    id 'net.neoforged.gradle.userdev' version '7.0.192'
+    id 'net.minecraftforge.gradle' version '[6.0.54,6.2)'
 }
 
 version = mod_version
 
-// Jar name: smwti-neoforge-<minecraft version>-<mod version>
+// Jar name: bei-neoforge-<minecraft version>-<mod version>
 base {
     archivesName = 'bei-neoforge-1.20.1'
 }
@@ -52,32 +55,44 @@ if (jeiBridge) {
 // Mojang ships Java 17 to end users in 1.18+, so the mod targets Java 17.
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
-runs {
-    configureEach {
-        workingDirectory = project.file('run')
-        modSource sourceSets.main
-    }
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
 
-    client {
-        // gradlew runClient -Pbei_quickplay=<save folder> joins that singleplayer world at once.
-        if (findProperty('bei_quickplay')) {
-            programArgument '--quickPlaySingleplayer'
-            programArgument findProperty('bei_quickplay').toString()
+    runs {
+        client {
+            workingDirectory project.file('run')
+            // gradlew runClient -Pbei_quickplay=<save folder> joins that singleplayer world at once.
+            if (findProperty('bei_quickplay')) {
+                args '--quickPlaySingleplayer', findProperty('bei_quickplay').toString()
+            }
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
         }
-    }
 
-    server {
-        programArgument '--nogui'
+        server {
+            workingDirectory project.file('run')
+            args '--nogui'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
     }
 }
 
 repositories {
-    maven { url 'https://maven.neoforged.net/releases' }
+    maven { url 'https://maven.minecraftforge.net' }
     mavenCentral()
 }
 
 dependencies {
-    implementation "net.neoforged:forge:${minecraft_version}-${neo_version}"
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     // Unit tests for the parts that do not need the game running.
     testImplementation platform('org.junit:junit-bom:5.10.2')
@@ -99,6 +114,7 @@ var generateModMetadata = tasks.register('generateModMetadata', ProcessResources
     var replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
+            forge_version          : forge_version,
             neo_version_range      : neo_version_range,
             loader_version_range   : loader_version_range,
             mod_id                 : mod_id,
@@ -128,7 +144,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 // The public API on its own, for mods that add BEI plugins to compile against. It holds only the
-// com.itmecasey.smwti.api package, so a mod never sees BEI's internals.
+// com.itmecasey.bei.api package, so a mod never sees BEI's internals.
 tasks.register('apiJar', Jar) {
     archiveClassifier = 'api'
     from(sourceSets.main.output) {

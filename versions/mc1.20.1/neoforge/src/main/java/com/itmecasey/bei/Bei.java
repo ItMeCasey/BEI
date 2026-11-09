@@ -4,8 +4,6 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.fml.ModLoadingContext;
 import org.slf4j.Logger;
 
@@ -17,7 +15,7 @@ public final class Bei {
 
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public Bei(IEventBus modBus, ModContainer container) {
+    public Bei() {
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, BeiConfig.SPEC);
         com.itmecasey.bei.net.ThemeChannel.register();
         com.itmecasey.bei.net.GiveChannel.register();

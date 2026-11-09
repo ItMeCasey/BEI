@@ -3,6 +3,8 @@
 ## 2026.11.9 (all ten builds)
 
 - JEI bridge: runtime. Plugins now get `onRuntimeAvailable` with a small `IJeiRuntime`, so a mod's own hide calls work: `removeIngredientsAtRuntime` (item stacks) hides the items in the browser, and `hideRecipeCategory` hides a recipe category, including game recipe types such as `minecraft:campfire_cooking`. This is what ModJS's `RecipeViewerEvents.hideItems` and `hideCategories` use. Items are hidden by item id, whatever their data.
+- NeoForge 1.20.1: the jar is now built with ForgeGradle against Forge 47.1 and reobfuscated to the names the game uses. The old NeoGradle build kept Mojang names, which work in a development run but would fail with `NoSuchMethodError` in a real NeoForge 1.20.1 game. The mod class now has the plain Forge 47 constructor. The jar was loaded in a real (launcher-style) Forge 47.4.28 install, joined a world and indexed items and recipes; it was not run in a real NeoForge 47.1.106 install (its installer could not be run here).
+- Forge 1.20.1 was loaded the same way in a real Forge 47.4.28 install: loaded, joined a world, bridge started.
 - Checked with the ModJS info tour on NeoForge 1.21.1 (`hid 17 item(s)`, `hid minecraft:campfire_cooking`). New unit tests cover the hidden lists and the runtime. The other nine builds compile and pass the hidden-list tests but were not run in a client for this.
 
 ## 2026.11.8 (all ten builds)
