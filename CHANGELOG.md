@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.9 (all ten builds)
+
+- JEI bridge: runtime. Plugins now get `onRuntimeAvailable` with a small `IJeiRuntime`, so a mod's own hide calls work: `removeIngredientsAtRuntime` (item stacks) hides the items in the browser, and `hideRecipeCategory` hides a recipe category, including game recipe types such as `minecraft:campfire_cooking`. This is what ModJS's `RecipeViewerEvents.hideItems` and `hideCategories` use. Items are hidden by item id, whatever their data.
+- Checked with the ModJS info tour on NeoForge 1.21.1 (`hid 17 item(s)`, `hid minecraft:campfire_cooking`). New unit tests cover the hidden lists and the runtime. The other nine builds compile and pass the hidden-list tests but were not run in a client for this.
+
 ## 2026.11.8 (all ten builds)
 
 - JEI plugin support. Mods that ship a JEI plugin (Applied Energistics 2 and others) now show their item recipes in BEI without JEI installed: BEI embeds JEI's public API, runs the plugin's recipe registration and shows each JEI recipe category as a station. Fluid and custom ingredients, JEI recipe transfer and category drawing are not imported yet; a plugin that needs more of JEI is skipped and logged. BEI now provides the `jei` mod id, so **the real JEI mod cannot be installed next to BEI**.

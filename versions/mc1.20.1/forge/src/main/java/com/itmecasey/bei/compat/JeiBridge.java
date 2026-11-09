@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import mezz.jei.api.IModPlugin;
@@ -24,6 +26,10 @@ import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.helpers.IJeiHelpers;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.recipe.IFocusGroup;
+import mezz.jei.api.recipe.IRecipeCategoriesLookup;
+import mezz.jei.api.recipe.IRecipeManager;
+import mezz.jei.api.runtime.IIngredientManager;
+import mezz.jei.api.runtime.IJeiRuntime;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
@@ -100,7 +106,69 @@ public final class JeiBridge {
             run(plugin, "recipes", () -> plugin.registerRecipes(recipes));
             run(plugin, "catalysts", () -> plugin.registerRecipeCatalysts(catalysts));
         }
+        IJeiRuntime runtime = runtime(helpers);
+        for (IModPlugin plugin : plugins) {
+            run(plugin, "runtime", () -> plugin.onRuntimeAvailable(runtime));
+        }
+        if (!plugins.isEmpty()) {
+            // A plugin may have hidden items; make the browser work its hidden list out again.
+            com.itmecasey.bei.client.Groups.refresh();
+        }
         Bei.LOGGER.info("Loaded {} JEI plugin(s) with {} bridged categories", plugins.size(), CATEGORIES.size());
+    }
+
+    /**
+     * The small runtime plugins get in onRuntimeAvailable. It supports what scripts and configs use to tidy the
+     * viewer: removing and re-adding item ingredients and hiding recipe categories, wired to BEI's own hiding.
+     * Everything else answers with harmless empty values.
+     */
+    static IJeiRuntime runtime(IJeiHelpers helpers) {
+        IRecipeManager recipes = proxy(IRecipeManager.class, (self, method, args) -> {
+            if (method.getName().equals("hideRecipeCategory") && args[0] instanceof RecipeType<?> type) {
+                JeiHidden.hideCategory(type.getUid().toString());
+                Bei.LOGGER.debug("A JEI plugin hid the category {}", type.getUid());
+                return null;
+            }
+            if (method.getName().equals("unhideRecipeCategory") && args[0] instanceof RecipeType<?> type) {
+                JeiHidden.showCategory(type.getUid().toString());
+                return null;
+            }
+            if (method.getName().equals("createRecipeCategoryLookup")) {
+                return categoryLookup();
+            }
+            return fallback(method.getReturnType());
+        });
+        IIngredientManager ingredients = proxy(IIngredientManager.class, (self, method, args) -> {
+            String name = method.getName();
+            if ((name.equals("removeIngredientsAtRuntime") || name.equals("addIngredientsAtRuntime")) && args.length >= 2) {
+                boolean hide = name.equals("removeIngredientsAtRuntime");
+                int count = 0;
+                for (Object value : values(args[args.length - 1])) {
+                    ItemStack stack = item(value);
+                    if (!stack.isEmpty()) {
+                        String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+                        if (hide ? JeiHidden.hideItem(id) : JeiHidden.showItem(id)) {
+                            count++;
+                        }
+                    }
+                }
+                if (count > 0) {
+                    Bei.LOGGER.debug("A JEI plugin {} {} item(s)", hide ? "hid" : "showed", count);
+                }
+                return null;
+            }
+            if (name.equals("getAllIngredients") || name.equals("getAllTypedIngredients")
+                    || name.equals("getRegisteredIngredientTypes")) {
+                return List.of();
+            }
+            return fallback(method.getReturnType());
+        });
+        return proxy(IJeiRuntime.class, (self, method, args) -> switch (method.getName()) {
+            case "getRecipeManager" -> recipes;
+            case "getIngredientManager" -> ingredients;
+            case "getJeiHelpers" -> helpers;
+            default -> fallback(method.getReturnType());
+        });
     }
 
     public static synchronized List<BeiRecipe> contribute() {
@@ -245,7 +313,42 @@ public final class JeiBridge {
         return fallback(method.getReturnType());
     }
 
-    private static IJeiHelpers helpers() {
+    /**
+     * The categories a plugin can see: those bridged from JEI plugins plus one stand-in for every game recipe type
+     * (so a script can hide {@code minecraft:smelting} although BEI has no JEI vanilla plugin).
+     */
+    private static IRecipeCategoriesLookup categoryLookup() {
+        return proxy(IRecipeCategoriesLookup.class, (self, method, args) -> {
+            if (method.getName().equals("get")) {
+                return knownCategories().stream();
+            }
+            return fluentOrDefault(self, method);
+        });
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static List<IRecipeCategory<?>> knownCategories() {
+        List<IRecipeCategory<?>> out = new ArrayList<>(CATEGORIES.values());
+        Set<String> bridged = new HashSet<>();
+        for (IRecipeCategory<?> category : out) {
+            bridged.add(category.getRecipeType().getUid().toString());
+        }
+        for (ResourceLocation id : net.minecraft.core.registries.BuiltInRegistries.RECIPE_TYPE.keySet()) {
+            if (bridged.contains(id.toString())) {
+                continue;
+            }
+            RecipeType<Object> type = RecipeType.create(id.getNamespace(), id.getPath(), Object.class);
+            out.add(proxy(IRecipeCategory.class, (self, method, args) -> switch (method.getName()) {
+                case "getRecipeType" -> type;
+                case "getTitle" -> Component.literal(id.toString());
+                case "getWidth", "getHeight" -> 18;
+                default -> fallback(method.getReturnType());
+            }));
+        }
+        return out;
+    }
+
+    static IJeiHelpers helpers() {
         IGuiHelper gui = proxy(IGuiHelper.class, (self, method, args) -> {
             if (method.getName().equals("createDrawableIngredient") && args.length >= 2) {
                 ItemStack stack = item(args[args.length - 1]);

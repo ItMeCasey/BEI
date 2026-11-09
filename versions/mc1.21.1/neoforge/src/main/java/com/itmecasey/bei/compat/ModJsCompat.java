@@ -61,6 +61,9 @@ public final class ModJsCompat {
 
     /** Whether scripts hid this recipe's category (by recipe type id, or a plugin category id). */
     public static boolean hiddenCategory(BeiRecipe recipe) {
+        if (JeiHidden.categoryHidden(recipe.recipeType(), recipe.category() == null ? null : recipe.category().id().toString())) {
+            return true;
+        }
         Set<String> hidden = hiddenCategories;
         if (hidden.isEmpty()) {
             return false;
