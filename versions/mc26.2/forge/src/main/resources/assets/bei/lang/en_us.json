@@ -124,5 +124,6 @@
   "bei.sort.name": "Name",
   "bei.sort.mod": "Mod",
   "bei.tip.forward": "Forward",
-  "bei.tip.search_more": "%tab  ^color  &id  – creative tab, color, resource id"
+  "bei.tip.search_more": "%tab  ^color  &id  – creative tab, color, resource id",
+  "bei.popup.type": "Recipes at %s"
 }

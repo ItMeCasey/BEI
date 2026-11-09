@@ -40,7 +40,11 @@ public final class RecipePopup {
     private static final int CARD_GAP = 4;
     private static final int STATION = 20;
 
-    private record Entry(Item item, boolean uses) {
+    /** What the popup shows: the recipes of an item, or (with a type) every recipe of one category. */
+    private record Entry(Item item, boolean uses, @Nullable String type) {
+        Entry(Item item, boolean uses) {
+            this(item, uses, null);
+        }
     }
 
     private record Hit(int x, int y, ItemStack stack) {
@@ -105,6 +109,17 @@ public final class RecipePopup {
         scroll = 0;
     }
 
+    /** Opens the popup on every recipe of one category (a recipe click area on a machine screen). */
+    public static void openType(String typeUid) {
+        List<BeiRecipe> all = RecipeIndex.ofType(typeUid);
+        Item item = all.isEmpty() || all.get(0).stations().isEmpty() ? net.minecraft.world.item.Items.BOOK : all.get(0).stations().get(0).getItem();
+        SettingsPopup.close();
+        HISTORY.push(new Entry(item, false, typeUid));
+        FORWARD.clear();
+        selectedKey = null;
+        scroll = 0;
+    }
+
     public static void close() {
         barDragging = false;
         HISTORY.clear();
@@ -134,6 +149,9 @@ public final class RecipePopup {
     private static long cachedAt;
 
     private static List<BeiRecipe> recipes(Entry entry) {
+        if (entry.type() != null) {
+            return RecipeIndex.ofType(entry.type());
+        }
         return entry.uses() ? RecipeIndex.using(entry.item()) : RecipeIndex.producing(entry.item());
     }
 
@@ -308,7 +326,8 @@ public final class RecipePopup {
 
         ItemStack icon = entry.item().getDefaultInstance();
         g.item(icon, px + 5, py + 4);
-        String name = (entry.uses() ? I18n.get("bei.popup.uses") + ": " : "") + icon.getHoverName().getString();
+        String name = entry.type() != null ? I18n.get("bei.popup.type", icon.getHoverName().getString())
+                : (entry.uses() ? I18n.get("bei.popup.uses") + ": " : "") + icon.getHoverName().getString();
         int nameMax = pw - 24 - 26;
         while (font.width(name) > nameMax && name.length() > 3) {
             name = name.substring(0, name.length() - 2);

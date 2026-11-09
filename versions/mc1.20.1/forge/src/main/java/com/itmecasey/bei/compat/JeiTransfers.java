@@ -179,7 +179,7 @@ final class JeiTransfers {
             slots = bridged.slots();
         } else if (recipe.type().endsWith("Crafting")) {
             uid = "minecraft:crafting";
-            object = JeiBridge.vanillaRecipe(recipe.id());
+            object = JeiBridge.vanillaRecipe(recipe);
             slots = new ArrayList<>();
             for (List<ItemStack> input : recipe.inputs()) {
                 slots.add(new JeiViews.SlotSpec(RecipeIngredientRole.INPUT, input, null));

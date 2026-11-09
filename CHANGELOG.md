@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026.11.11 (all ten builds)
+
+- JEI bridge: exclusion zones. A JEI plugin's extra areas next to a machine screen (the side panels of Applied Energistics, for example) now keep the browser panel out of the way: it starts to the right of them.
+- JEI bridge: ghost-ingredient drags. Drag an item from the browser onto a drop target a plugin reports (a filter or config slot) and release to drop it; the targets light up while you drag. A short click still opens recipes. It only takes over the click on screens where a plugin has targets.
+- JEI bridge: the runtime's own screens answer from BEI. A plugin reading or setting the search text, asking what is under the mouse, bookmarking an item, opening the recipes of an item, or checking whether an item is hidden gets BEI's search box, bookmarks, recipe popup, edit mode and hidden items.
+- JEI bridge, 26.1.2, 26.2 and 26.3: vanilla crafting recipes now reach a plugin's transfer handler as a recipe object BEI builds from the recipe the server sent.
+- JEI bridge: recipe click areas. Clicking a machine's progress arrow (a plugin's `addRecipeClickArea` or a handler's clickable areas) opens BEI's recipe popup on that category, as does a plugin calling the recipes screen's `showTypes`.
+- JEI bridge: more of the API. Runtime recipe additions and hides while the runtime starts, `getRecipeType` and `getRecipeCategory`, slot backgrounds, GUI sprites, the plus sign, flames, the output slot, item-like drawables and the crafting grid helper. Calls BEI needs nothing from (subtype interpreters, replacing JEI's screens) are accepted without a log line.
+- Checked in a client on NeoForge 1.21.1 with AE2: on the interface screen the panel moves from the screen edge at 301 to 329 for AE2's extra area and 9 ghost drop targets are reported; on the inscriber screen a click on the progress arrow opens "Recipes at Inscriber". The other builds start and load cleanly in a client, and both 1.20.1 jars load in a real Forge 47.4.28 install. Unit tests cover the exclusion zone, the ghost targets and the runtime adapters. The `bei-api` jar is unchanged.
+
 ## 2026.11.10 (all ten builds)
 
 JEI parity. BEI now covers what players and mod authors use JEI for.

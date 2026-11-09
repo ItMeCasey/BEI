@@ -25,6 +25,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 final class JeiTour {
     private static final boolean ENABLED = System.getenv("BEI_JEI_TOUR") != null;
     private static final String ITEMS = System.getenv("BEI_JEI_TOUR_ITEMS");
+    private static final String BLOCK = System.getenv("BEI_JEI_TOUR_BLOCK");
 
     private record Step(int delay, Runnable action) {
     }
@@ -111,10 +112,67 @@ final class JeiTour {
                 shoot("uses_" + name.replace(':', '_'), 25);
             }
         }
+        if (BLOCK != null) {
+            then(2, () -> placeBlock(BLOCK));
+            then(20, JeiTour::useBlock);
+            then(60, JeiTour::probeScreen);
+            shoot("machine_screen", 5);
+            then(2, () -> Minecraft.getInstance().setScreen(null));
+        }
         then(2, () -> Bookmarks.toggle("minecraft:diamond"));
         then(0, () -> Bookmarks.toggle("minecraft:iron_ingot"));
         then(0, () -> Bookmarks.toggle("minecraft:redstone"));
         then(5, RecipePopup::close);
+    }
+
+    private static net.minecraft.core.BlockPos blockPos;
+
+    /** Puts a block next to the player. */
+    private static void placeBlock(String id) {
+        Minecraft game = Minecraft.getInstance();
+        blockPos = game.player.blockPosition().east(2);
+        net.minecraft.core.BlockPos pos = blockPos;
+        net.minecraft.server.MinecraftServer server = game.getSingleplayerServer();
+        if (server != null) {
+            server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),
+                    "setblock " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " " + id));
+        }
+    }
+
+    /** Uses the block, so its screen opens when the server answers. */
+    private static void useBlock() {
+        Minecraft game = Minecraft.getInstance();
+        net.minecraft.world.phys.BlockHitResult hit = new net.minecraft.world.phys.BlockHitResult(
+                net.minecraft.world.phys.Vec3.atCenterOf(blockPos), net.minecraft.core.Direction.UP, blockPos, false);
+        game.gameMode.useItemOn(game.player, net.minecraft.world.InteractionHand.MAIN_HAND, hit);
+        Bei.LOGGER.info("BEI-TOUR used the block at {}", blockPos);
+    }
+
+    /** Logs what the JEI bridge reports for the open machine screen: the panel's start and the ghost drop targets. */
+    private static void probeScreen() {
+        Minecraft game = Minecraft.getInstance();
+        var screen = game.screen;
+        Bei.LOGGER.info("BEI-TOUR screen is {}", screen == null ? "none" : screen.getClass().getName());
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> container) {
+            int guiRight = container.getGuiLeft() + container.getXSize();
+            Bei.LOGGER.info("BEI-TOUR guiRight {} extraRight {}", guiRight, com.itmecasey.bei.compat.JeiHooks.extraRight(container, guiRight));
+            var targets = com.itmecasey.bei.compat.JeiHooks.ghostTargets(container, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_INGOT));
+            Bei.LOGGER.info("BEI-TOUR ghost targets {}", targets.size());
+            int left = container.getGuiLeft();
+            int top = container.getGuiTop();
+            outer:
+            for (int dy = 0; dy < container.getYSize(); dy += 3) {
+                for (int dx = 0; dx < container.getXSize(); dx += 3) {
+                    if (com.itmecasey.bei.compat.JeiHooks.clickAreas(container, left, top, left + dx, top + dy)) {
+                        Bei.LOGGER.info("BEI-TOUR click area hit at {},{} (popup open: {})", dx, dy, RecipePopup.isOpen());
+                        break outer;
+                    }
+                }
+            }
+            for (var target : targets) {
+                Bei.LOGGER.info("BEI-TOUR   target at {},{} size {}x{}", target.x(), target.y(), target.width(), target.height());
+            }
+        }
     }
 
     private static void open(String id, boolean uses) {

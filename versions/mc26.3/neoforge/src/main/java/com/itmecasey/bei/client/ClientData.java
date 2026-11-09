@@ -28,7 +28,7 @@ public final class ClientData {
     }
 
     /** Points the data at another file (unit tests); null goes back to the game folder. */
-    static synchronized void useFile(Path file) {
+    public static synchronized void useFile(Path file) {
         testFile = file;
         root = null;
     }

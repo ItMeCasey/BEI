@@ -34,6 +34,13 @@ final class JeiDrawables {
         ((GuiGraphicsExtractor) g).item(stack, x, y);
     }
 
+    /** A GUI sprite (from the game's GUI atlas) stretched to the area. */
+    static void sprite(Object g, Identifier sprite, int x, int y, int w, int h) {
+        if (w > 0 && h > 0) {
+            ((GuiGraphicsExtractor) g).blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, w, h);
+        }
+    }
+
     static void drawStatic(IDrawableStatic drawable, Object g, int x, int y, int top, int bottom, int left, int right) {
         drawable.draw((GuiGraphicsExtractor) g, x, y, top, bottom, left, right);
     }
@@ -188,6 +195,39 @@ final class JeiDrawables {
                     fill(g, x + column, y + 8 - (5 - i), x + column + 1, y + 9 + (5 - i), color);
                 }
             }
+        });
+    }
+
+    /** A GUI sprite as a drawable of the given size. */
+    static IDrawableStatic spriteDrawable(Identifier sprite, int width, int height) {
+        return painted(width, height, (g, x, y, t, b, l, r) -> sprite(g, sprite, x, y, width, height));
+    }
+
+    /** The plus sign between ingredients: 13 by 13. */
+    static IDrawableStatic plus() {
+        return painted(13, 13, (g, x, y, t, b, l, r) -> {
+            fill(g, x + 5, y + 1, x + 8, y + 12, 0xFF8B8B8B);
+            fill(g, x + 1, y + 5, x + 12, y + 8, 0xFF8B8B8B);
+        });
+    }
+
+    /** The fuel flame: 14 by 14, orange when filled. */
+    static IDrawableStatic flame(boolean filled) {
+        int outer = filled ? 0xFFE08A1E : 0xFF5A5A5A;
+        int inner = filled ? 0xFFF7D154 : 0xFF3F3F3F;
+        return painted(14, 14, (g, x, y, top, bottom, left, right) -> {
+            fill(g, x + 4, y + 1 + top, x + 10, y + 13 - bottom, outer);
+            fill(g, x + 2, y + 6 + top, x + 12, y + 13 - bottom, outer);
+            fill(g, x + 5, y + 8 + top, x + 9, y + 13 - bottom, inner);
+        });
+    }
+
+    /** The big output slot of machines: 26 by 26. */
+    static IDrawableStatic outputSlot() {
+        return painted(26, 26, (g, x, y, t, b, l, r) -> {
+            fill(g, x, y, x + 26, y + 26, 0xFF373737);
+            fill(g, x + 1, y + 1, x + 26, y + 26, 0xFFFFFFFF);
+            fill(g, x + 1, y + 1, x + 25, y + 25, 0xFF8B8B8B);
         });
     }
 

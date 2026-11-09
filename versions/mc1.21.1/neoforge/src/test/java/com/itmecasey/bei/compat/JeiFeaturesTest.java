@@ -57,6 +57,12 @@ class JeiFeaturesTest {
         assertEquals(18, gui.getSlotDrawable().getWidth());
         assertEquals(24, gui.getRecipeArrow().getWidth());
         assertEquals(10, gui.createBlankDrawable(10, 12).getWidth());
+        assertEquals(13, gui.getRecipePlusSign().getWidth());
+        assertEquals(14, gui.getRecipeFlameFilled().getHeight());
+        assertEquals(26, gui.getOutputSlot().getWidth());
+        assertEquals(14, gui.createAnimatedRecipeFlame(200).getWidth());
+        assertEquals(16, gui.createDrawableItemLike(Items.STONE).getWidth());
+        assertEquals(30, gui.createDrawableSprite(ResourceLocation.fromNamespaceAndPath("test", "gui/sprite"), 30, 20).getWidth());
     }
 
     @Test

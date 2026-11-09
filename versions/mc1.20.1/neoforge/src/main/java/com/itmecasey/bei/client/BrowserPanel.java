@@ -1,6 +1,8 @@
 package com.itmecasey.bei.client;
 
 import com.itmecasey.bei.BeiConfig;
+import com.itmecasey.bei.compat.GhostTarget;
+import com.itmecasey.bei.compat.JeiHooks;
 import com.itmecasey.bei.client.Groups.Cell;
 import com.itmecasey.bei.index.ItemEntry;
 import com.itmecasey.bei.index.ItemIndex;
@@ -68,6 +70,14 @@ public final class BrowserPanel {
     private static int rows;
     private static int searchY;
     private static int bookY;
+    private static AbstractContainerScreen<?> shownScreen;
+    private static int frameMouseX;
+    private static int frameMouseY;
+    private static boolean ghostActive;
+    private static ItemStack ghostStack = ItemStack.EMPTY;
+    private static List<GhostTarget> ghostTargets = List.of();
+    private static double ghostFromX;
+    private static double ghostFromY;
     private static int searchW;
 
     private BrowserPanel() {
@@ -130,7 +140,7 @@ public final class BrowserPanel {
 
     /** Recomputes the geometry; run every frame so a settings change shows at once. */
     private static void compute(AbstractContainerScreen<?> screen) {
-        int guiRight = screen.getGuiLeft() + screen.getXSize();
+        int guiRight = JeiHooks.extraRight(screen, screen.getGuiLeft() + screen.getXSize());
         int trayRow = trayRowFor();
         int room = screen.width - guiRight - 6 - EDGE;
         int fitCols = Math.min(MAX_COLS, (room - 16) / CELL);
@@ -197,6 +207,9 @@ public final class BrowserPanel {
     // ---- drawing --------------------------------------------------------------------------------
 
     public static void render(AbstractContainerScreen<?> screen, Draw graphics, int mouseX, int mouseY) {
+        shownScreen = screen;
+        frameMouseX = mouseX;
+        frameMouseY = mouseY;
         Font font = Minecraft.getInstance().font;
         compute(screen);
         box.setX(panelX + 14);
@@ -350,6 +363,103 @@ public final class BrowserPanel {
         } else if (Ui.in(mouseX, mouseY, panelX + 6, panelY + 4, panelW - 12, 14)) {
             Ui.tip(graphics, font, Component.translatable("bei.tip.status"), mouseX, mouseY);
         }
+        renderGhost(graphics);
+    }
+
+    // ---- what the JEI bridge reads ---------------------------------------------------------------
+
+    static boolean isShown() {
+        return shown;
+    }
+
+    static boolean searchFocused() {
+        return shown && box != null && box.isFocused();
+    }
+
+    /** The item under the mouse in the browser grid (not a container slot), or null. */
+    static @Nullable ItemStack gridStackUnderMouse() {
+        if (!shown) {
+            return null;
+        }
+        List<Cell> list = results;
+        double dx = frameMouseX - gridX;
+        double dy = frameMouseY - gridY;
+        if (dx >= 0 && dy >= 0 && dx < cols * CELL && dy < rows * CELL) {
+            int index = (scroll + (int) (dy / CELL)) * cols + (int) (dx / CELL);
+            if (index < list.size() && !list.get(index).isGroup()) {
+                return list.get(index).item().stack;
+            }
+        }
+        return null;
+    }
+
+    static @Nullable ItemStack bookmarkUnderMouse() {
+        if (!shown || !Bookmarks.has() || frameMouseY < bookY || frameMouseY >= bookY + CELL || frameMouseX < gridX) {
+            return null;
+        }
+        List<ItemEntry> marks = Bookmarks.entries();
+        int index = (int) ((frameMouseX - gridX) / CELL);
+        return index < marks.size() && index < cols ? marks.get(index).stack : null;
+    }
+
+    /** The items the current search lists (groups left out). */
+    static List<ItemStack> filteredStacks() {
+        List<ItemStack> out = new java.util.ArrayList<>();
+        for (Cell cell : results) {
+            if (!cell.isGroup()) {
+                out.add(cell.item().stack);
+            }
+        }
+        return out;
+    }
+
+    // ---- dragging an item onto a machine screen (JEI ghost-ingredient handlers) -------------------
+
+    /** Starts a drag when a plugin has somewhere on this screen to drop the item; otherwise the click is a normal one. */
+    private static boolean beginGhost(AbstractContainerScreen<?> screen, ItemStack stack, MouseButtonEvent event) {
+        if (event.button() != 0 || EditMode.on() || Cheats.enabled()) {
+            return false;
+        }
+        List<GhostTarget> targets = JeiHooks.ghostTargets(screen, stack);
+        if (targets.isEmpty()) {
+            return false;
+        }
+        ghostActive = true;
+        ghostStack = stack.copy();
+        ghostTargets = targets;
+        ghostFromX = event.x();
+        ghostFromY = event.y();
+        return true;
+    }
+
+    /** Draws the drag and the drop areas while the button is down; when it is released, drops or (if it barely moved) opens recipes. */
+    private static void renderGhost(Draw graphics) {
+        if (!ghostActive) {
+            return;
+        }
+        if (Ui.leftDown()) {
+            for (GhostTarget target : ghostTargets) {
+                graphics.fill(target.x(), target.y(), target.x() + target.width(), target.y() + target.height(), 0x6600C000);
+            }
+            graphics.item(ghostStack, frameMouseX - 8, frameMouseY - 8);
+            return;
+        }
+        ghostActive = false;
+        if (Math.hypot(frameMouseX - ghostFromX, frameMouseY - ghostFromY) < 4) {
+            RecipePopup.open(ghostStack.getItem(), false);
+        } else {
+            for (GhostTarget target : ghostTargets) {
+                if (target.contains(frameMouseX, frameMouseY)) {
+                    target.accept().accept(ghostStack.copy());
+                    break;
+                }
+            }
+        }
+        if (!ghostTargets.isEmpty()) {
+            ghostTargets.get(0).complete().run();
+        }
+        ghostTargets = List.of();
+        ghostStack = ItemStack.EMPTY;
     }
 
     // ---- hover ----------------------------------------------------------------------------------
@@ -387,6 +497,9 @@ public final class BrowserPanel {
     public static boolean mouseClicked(AbstractContainerScreen<?> screen, MouseButtonEvent event) {
         double x = event.x();
         double y = event.y();
+        if (event.button() == 0 && JeiHooks.clickAreas(screen, screen.getGuiLeft(), screen.getGuiTop(), x, y)) {
+            return true;
+        }
         if (GroupTip.isFrozen() && GroupTip.insideFrozen(x, y)) {
             ItemEntry picked = GroupTip.itemAt(x, y);
             if (picked != null) {
@@ -450,7 +563,7 @@ public final class BrowserPanel {
                         Groups.toggleExpanded(cell.group());
                         dirty = true;
                     }
-                } else {
+                } else if (!beginGhost(screen, cell.item().stack, event)) {
                     itemClicked(cell.item().stack, event);
                 }
             }

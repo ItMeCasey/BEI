@@ -341,6 +341,7 @@ public final class Ui {
     }
 
     private static final java.lang.reflect.Field LEFT_POS = field("leftPos");
+    private static final java.lang.reflect.Field TOP_POS = field("topPos");
     private static final java.lang.reflect.Field IMAGE_WIDTH = field("imageWidth");
     private static final java.lang.reflect.Field HOVERED_SLOT = field("hoveredSlot");
 
@@ -348,6 +349,15 @@ public final class Ui {
     public static int guiLeft(net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen) {
         try {
             return LEFT_POS.getInt(screen);
+        } catch (IllegalAccessException e) {
+            return 0;
+        }
+    }
+
+    /** Top edge of the open container screen's background. */
+    public static int guiTop(net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen) {
+        try {
+            return TOP_POS.getInt(screen);
         } catch (IllegalAccessException e) {
             return 0;
         }

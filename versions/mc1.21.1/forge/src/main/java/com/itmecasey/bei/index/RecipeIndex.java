@@ -45,6 +45,20 @@ public final class RecipeIndex {
         return byInput.getOrDefault(item, List.of());
     }
 
+    /** Every recipe of one recipe type or card category (by id), each once. */
+    public static List<BeiRecipe> ofType(String typeUid) {
+        java.util.Map<String, BeiRecipe> found = new java.util.LinkedHashMap<>();
+        for (List<BeiRecipe> list : byOutput.values()) {
+            for (BeiRecipe recipe : list) {
+                if (typeUid.equals(recipe.recipeType()) || typeUid.equals(recipe.type())
+                        || recipe.category() != null && typeUid.equals(recipe.category().id().toString())) {
+                    found.putIfAbsent(recipe.id(), recipe);
+                }
+            }
+        }
+        return new java.util.ArrayList<>(found.values());
+    }
+
     /** Replaces the index with these recipes, for tests and tools that have no recipe manager. */
     public static void useRecipes(List<BeiRecipe> recipes) {
         Map<Item, List<BeiRecipe>> out = new HashMap<>();

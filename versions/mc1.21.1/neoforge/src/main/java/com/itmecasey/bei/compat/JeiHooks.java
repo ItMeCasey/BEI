@@ -48,6 +48,24 @@ public final class JeiHooks {
         call("loadOnce", new Class<?>[0], new Object[0], null);
     }
 
+    /** Where the browser panel may start on this screen: pushed right by areas a JEI plugin keeps clear. */
+    public static int extraRight(Object screen, int guiRight) {
+        return (Integer) call("extraRight", new Class<?>[] {Object.class, int.class}, new Object[] {screen, guiRight}, guiRight);
+    }
+
+    /** A click on a machine screen that lands on a plugin's recipe click area opens that category's recipes. */
+    public static boolean clickAreas(Object screen, int guiLeft, int guiTop, double mouseX, double mouseY) {
+        return (Boolean) call("clickAreas", new Class<?>[] {Object.class, int.class, int.class, double.class, double.class},
+                new Object[] {screen, guiLeft, guiTop, mouseX, mouseY}, Boolean.FALSE);
+    }
+
+    /** Drop targets for a dragged item on this screen, from JEI plugins' ghost-ingredient handlers. */
+    @SuppressWarnings("unchecked")
+    public static List<GhostTarget> ghostTargets(Object screen, net.minecraft.world.item.ItemStack stack) {
+        return (List<GhostTarget>) call("ghostTargets", new Class<?>[] {Object.class, net.minecraft.world.item.ItemStack.class},
+                new Object[] {screen, stack}, List.of());
+    }
+
     /** Runs the JEI plugins again; the game's recipes just arrived. */
     public static void reload() {
         call("reload", new Class<?>[0], new Object[0], null);
