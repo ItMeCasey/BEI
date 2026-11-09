@@ -10,7 +10,7 @@ A minimalist, fast item and recipe viewer for Minecraft (Forge and NeoForge). Th
 - Themes: dark, light, and datapack themes; backdrop opacity; draggable windows; rarity-colored item tooltips that include the game's graphical parts (a bundle's contents, a mod's food bar).
 - Cheat mode (Ctrl+click the gear): click items to hold or place them, with no commands. Needs creative mode, operator permission, or your own singleplayer world.
 - Plugin API for mods that add recipe types and recipe cards, and [ModJS](https://github.com/ItMeCasey/ModJS) script support.
-- Experimental JEI-plugin bridge (test builds of NeoForge 1.21.1 only so far): JEI recipe categories become BEI stations, so mods with a JEI plugin show their item recipes without JEI installed.
+- Works with mods that ship a JEI plugin, without JEI installed: BEI includes JEI's public API and turns each JEI recipe category into a station. Do not install the real JEI mod next to BEI.
 
 ## Install
 
@@ -168,11 +168,11 @@ public class MyPlugin implements IBeiPlugin {
 - A plugin that fails to load or throws is logged and skipped; it cannot break BEI or other plugins.
 - `ExamplePlugin` in BEI's source is a working sample; it only switches on in the development client.
 
-### Existing JEI plugins (experimental, test builds)
+### Existing JEI plugins (all builds)
 
-A test build made with `gradlew build -Pbei_jei_bridge=true` (NeoForge 1.21.1 only so far) embeds JEI's public API and runs a small recipe-only runtime. It discovers `@JeiPlugin` classes, treats each JEI recipe category as a BEI station, uses the category's catalysts as the station icon and imports item input and output slots. Checked in a client with AE2 and AE2 JEI Integration: 7 categories bridged. The full JEI interface is not included, and a plugin that needs more of JEI is logged and skipped.
+BEI embeds JEI's public API (only that; none of JEI's own code) and provides the `jei` mod id with a small recipe-only runtime. It discovers `@JeiPlugin` classes, treats each JEI recipe category as a BEI station, uses the category's catalysts as the station icon and imports item input and output slots. A plugin that needs more of JEI is logged and skipped, and a failure in the bridge switches only the bridge off.
 
-Not imported yet: fluid and custom ingredients, JEI recipe transfer, category background drawing and runtime-only recipe additions. Release builds leave the bridge out (no JEI classes, no `jei` mod id), so they work next to the real JEI mod. A bridge test build claims the `jei` mod id and cannot be installed with real JEI.
+Because BEI provides the `jei` mod id, the real JEI mod cannot be installed next to it; BEI replaces JEI. Not imported yet: fluid and custom ingredients, JEI recipe transfer, category background drawing and runtime-only recipe additions. Checked in a client with AE2 and AE2 JEI Integration on NeoForge 1.21.1 (7 categories). The other nine builds compile and pass their unit tests but are not run on screen yet. To build without the bridge, pass `-Pbei_jei_bridge=false`.
 
 ## ModJS scripts
 

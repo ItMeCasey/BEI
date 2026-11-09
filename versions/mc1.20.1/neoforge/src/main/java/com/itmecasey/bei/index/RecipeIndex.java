@@ -95,6 +95,10 @@ public final class RecipeIndex {
                 if (recipe == null || com.itmecasey.bei.compat.ModJsCompat.hiddenCategory(recipe)) {
                     continue;
                 }
+                if (recipe.recipeType() != null
+                        && com.itmecasey.bei.compat.JeiHooks.handlesRecipeType(recipe.recipeType())) {
+                    continue;
+                }
                 total++;
                 index(recipe, out, in);
             } catch (RuntimeException e) {

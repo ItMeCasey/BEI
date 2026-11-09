@@ -115,6 +115,10 @@ public final class RecipeIndex {
                 if (com.itmecasey.bei.compat.ModJsCompat.hiddenCategory(recipe)) {
                     continue;
                 }
+                if (recipe.recipeType() != null
+                        && com.itmecasey.bei.compat.JeiHooks.handlesRecipeType(recipe.recipeType())) {
+                    continue;
+                }
                 total++;
                 for (ItemStack stack : recipe.outputs()) {
                     add(out, stack.getItem(), recipe);

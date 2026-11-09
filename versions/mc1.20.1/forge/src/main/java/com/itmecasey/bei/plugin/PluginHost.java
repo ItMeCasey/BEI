@@ -46,6 +46,7 @@ public final class PluginHost {
         if (!loaded) {
             loaded = true;
             load();
+            com.itmecasey.bei.compat.JeiHooks.loadOnce();
         }
     }
 
@@ -129,6 +130,7 @@ public final class PluginHost {
                 Bei.LOGGER.warn("The BEI plugin {} failed to register recipes", plugin.getClass().getName(), e);
             }
         }
+        out.addAll(com.itmecasey.bei.compat.JeiHooks.contribute());
         return out;
     }
 

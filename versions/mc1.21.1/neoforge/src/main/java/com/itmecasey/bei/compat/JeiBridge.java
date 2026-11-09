@@ -130,7 +130,7 @@ public final class JeiBridge {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void bridgeCategory(RecipeType<?> type, IRecipeCategory category, List<Object> recipes,
             List<BeiRecipe> out) {
-        List<LayoutSlot> first = layout(category, recipes.getFirst());
+        List<LayoutSlot> first = layout(category, recipes.get(0));
         ItemStack station = STATIONS.get(type);
         if ((station == null || station.isEmpty()) && ICONS.containsKey(category.getIcon())) {
             station = ICONS.get(category.getIcon());
@@ -212,6 +212,17 @@ public final class JeiBridge {
     private static Object catalystCall(Method method, Object[] args, IJeiHelpers helpers) {
         if (method.getName().equals("getJeiHelpers")) {
             return helpers;
+        }
+        if ((method.getName().equals("addCraftingStation") || method.getName().equals("addCraftingStations"))
+                && args[0] instanceof RecipeType<?> type) {
+            // JEI 29 and later: the catalyst helpers all end here.
+            for (Object value : values(args[args.length - 1])) {
+                ItemStack stack = item(value);
+                if (!stack.isEmpty()) {
+                    STATIONS.putIfAbsent(type, stack.copy());
+                }
+            }
+            return fallback(method.getReturnType());
         }
         if (method.getName().equals("addRecipeCatalysts") && args[0] instanceof RecipeType<?> type) {
             for (Object value : values(args[args.length - 1])) {

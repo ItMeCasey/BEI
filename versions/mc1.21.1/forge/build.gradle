@@ -13,6 +13,42 @@ base {
 }
 group = mod_group_id
 
+repositories {
+    maven { url = 'https://maven.blamejared.com' }
+}
+
+configurations {
+    jeiApiEmbed
+}
+
+// The JEI-plugin bridge embeds JEI's public API and claims the "jei" mod id, so BEI replaces JEI and cannot be
+// installed with the real JEI mod. To build without it:
+//   gradlew build -Pbei_jei_bridge=false
+boolean jeiBridge = (findProperty('bei_jei_bridge') ?: 'false').toString().toBoolean()
+if (!jeiBridge) {
+    sourceSets.main.java.exclude 'com/itmecasey/bei/compat/JeiBridge.java', 'com/itmecasey/bei/compat/JeiCompatMod.java'
+    sourceSets.main.resources.exclude 'META-INF/LICENSE_jei.txt'
+} 
+
+dependencies {
+    if (jeiBridge) {
+        compileOnly "mezz.jei:jei-1.21.1-common-api:${jei_api_version}"
+        jeiApiEmbed "mezz.jei:jei-1.21.1-common-api:${jei_api_version}"
+        jeiApiEmbed "mezz.jei:jei-1.21.1-forge-api:${jei_api_version}"
+    }
+}
+
+var extractJeiApi = tasks.register('extractJeiApi', Sync) {
+    from({ configurations.jeiApiEmbed.collect { zipTree(it) } }) {
+        include 'mezz/jei/api/**'
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    into layout.buildDirectory.dir('generated/jeiApi')
+}
+if (jeiBridge) {
+    sourceSets.main.output.dir(extractJeiApi)
+}
+
 // Mojang ships Java 21 to end users in 1.20.5+, so the mod targets Java 21.
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
@@ -67,6 +103,15 @@ var generateModMetadata = tasks.register('generateModMetadata', ProcessResources
             mod_version            : mod_version,
             mod_authors            : mod_authors,
             mod_description        : mod_description,
+            jei_identity           : jeiBridge ? """
+# Bridge build only: compatibility identity for mods that declare a JEI dependency. Cannot coexist with real JEI.
+[[mods]]
+modId="jei"
+version="${jei_api_version}"
+displayName="JEI API compatibility provided by BEI"
+authors="ItMeCasey"
+description='''A minimal JEI API runtime that exposes JEI recipe plugins as BEI stations.'''
+""" : '',
     ]
     inputs.properties replaceProperties
     expand replaceProperties

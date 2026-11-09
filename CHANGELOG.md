@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.8 (all ten builds)
+
+- JEI plugin support. Mods that ship a JEI plugin (Applied Energistics 2 and others) now show their item recipes in BEI without JEI installed: BEI embeds JEI's public API, runs the plugin's recipe registration and shows each JEI recipe category as a station. Fluid and custom ingredients, JEI recipe transfer and category drawing are not imported yet; a plugin that needs more of JEI is skipped and logged. BEI now provides the `jei` mod id, so **the real JEI mod cannot be installed next to BEI**.
+- Checked in a client on NeoForge 1.21.1 with AE2 and AE2 JEI Integration (7 categories, 10 recipes). The other nine builds compile and pass their unit tests; they are not run on screen yet.
+
 ## 2026.11.7 (all ten builds)
 
 - Item variants. Potions, splash and lingering potions, tipped arrows, enchanted books and the other items the creative tabs list in several forms now get one browser entry per form. A plain search finds a variant by name. A new **Show variants** setting (on by default) turns it off.
