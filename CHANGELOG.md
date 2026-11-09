@@ -3,7 +3,7 @@
 ## 2026.11.8 (all ten builds)
 
 - JEI plugin support. Mods that ship a JEI plugin (Applied Energistics 2 and others) now show their item recipes in BEI without JEI installed: BEI embeds JEI's public API, runs the plugin's recipe registration and shows each JEI recipe category as a station. Fluid and custom ingredients, JEI recipe transfer and category drawing are not imported yet; a plugin that needs more of JEI is skipped and logged. BEI now provides the `jei` mod id, so **the real JEI mod cannot be installed next to BEI**.
-- Checked in a client on NeoForge 1.21.1 with AE2 and AE2 JEI Integration (7 categories, 10 recipes). The other nine builds compile and pass their unit tests; they are not run on screen yet.
+- Checked in a client on NeoForge 1.21.1 with AE2 and AE2 JEI Integration (7 categories, 10 recipes bridged). Every other build except Forge 1.20.1 (its dev run task does not exist) was started in a client, joined a world and loaded the bridge without errors; none of them had a JEI-plugin mod installed, so they show 0 plugins. New unit tests cover the plain-search match on a variant's tooltip text.
 
 ## 2026.11.7 (all ten builds)
 

@@ -59,6 +59,11 @@ runs {
     }
 
     client {
+        // gradlew runClient -Pbei_quickplay=<save folder> joins that singleplayer world at once.
+        if (findProperty('bei_quickplay')) {
+            programArgument '--quickPlaySingleplayer'
+            programArgument findProperty('bei_quickplay').toString()
+        }
     }
 
     server {

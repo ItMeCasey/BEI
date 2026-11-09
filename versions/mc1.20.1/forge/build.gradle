@@ -58,6 +58,10 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+            // gradlew runClient -Pbei_quickplay=<save folder> joins that singleplayer world at once.
+            if (findProperty('bei_quickplay')) {
+                args '--quickPlaySingleplayer', findProperty('bei_quickplay').toString()
+            }
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             mods {

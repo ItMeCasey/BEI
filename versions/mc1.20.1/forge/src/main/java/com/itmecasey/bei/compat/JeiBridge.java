@@ -396,8 +396,39 @@ public final class JeiBridge {
             }
             return handler.invoke(self, method, args == null ? new Object[0] : args);
         };
-        return (T) Proxy.newProxyInstance(JeiBridge.class.getClassLoader(), new Class<?>[]{type}, invocation);
+        // The interface's own loader resolves the classes its methods mention exactly as the interface did.
+        ClassLoader loader = type.getClassLoader() != null ? type.getClassLoader() : PROXY_LOADER;
+        try {
+            return (T) Proxy.newProxyInstance(loader, new Class<?>[]{type}, invocation);
+        } catch (IllegalArgumentException e) {
+            return (T) Proxy.newProxyInstance(PROXY_LOADER, new Class<?>[]{type}, invocation);
+        }
     }
+
+    /**
+     * Proxy interfaces mention Minecraft classes. On Forge those live in a loader BEI's own loader cannot find by
+     * name, which makes Proxy refuse the interface; this loader asks every loader that might know the class.
+     */
+    private static final ClassLoader PROXY_LOADER = new ClassLoader(JeiBridge.class.getClassLoader()) {
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            ClassNotFoundException first = null;
+            for (ClassLoader loader : new ClassLoader[] {JeiBridge.class.getClassLoader(), ItemStack.class.getClassLoader(),
+                    Thread.currentThread().getContextClassLoader(), ClassLoader.getSystemClassLoader()}) {
+                if (loader == null) {
+                    continue;
+                }
+                try {
+                    return Class.forName(name, false, loader);
+                } catch (ClassNotFoundException e) {
+                    if (first == null) {
+                        first = e;
+                    }
+                }
+            }
+            throw first != null ? first : new ClassNotFoundException(name);
+        }
+    };
 
     @FunctionalInterface
     private interface BridgeHandler {

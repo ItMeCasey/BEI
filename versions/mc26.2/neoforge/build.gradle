@@ -65,6 +65,10 @@ neoForge {
 
         client {
             client()
+            // gradlew runClient -Pbei_quickplay=<save folder> joins that singleplayer world at once.
+            if (findProperty('bei_quickplay')) {
+                programArguments.addAll('--quickPlaySingleplayer', findProperty('bei_quickplay').toString())
+            }
         }
 
         server {

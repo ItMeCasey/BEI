@@ -61,7 +61,12 @@ minecraft {
             systemProperty 'bei.examples', 'true'
         }
 
-        register('client')
+        register('client') {
+            // gradlew runClient -Pbei_quickplay=<save folder> joins that singleplayer world at once.
+            if (findProperty('bei_quickplay')) {
+                args '--quickPlaySingleplayer', findProperty('bei_quickplay').toString()
+            }
+        }
 
         register('server') {
             args '--nogui'
