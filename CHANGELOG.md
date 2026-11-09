@@ -14,7 +14,8 @@ Zero unsupported JEI calls that BEI can answer. Plugins now get working answers 
 - 1.20.1: GUI sprite drawables look for the sprite as a plain texture (`textures/gui/sprites/NAME.png`) and stretch it.
 - `bei-api`: `CardPainter` gains `paintOverlay`, `mouseClicked`, `mouseReleased`, `mouseDragged`, `mouseScrolled`, `slotTooltip` and `transferButton` (all with defaults, so existing painters keep working). Publish new API jars.
 - Unit tests cover the new parts (card widgets, aliases, the ingredient registry, manager plugins, decorators, listeners, extensions, late recipes).
-- Still not done: a replacement search storage from `registerAdvancedSearch` is kept but BEI's search is its own; the layout drawable's `drawOverlays` does not draw tooltips; vanilla category extensions need recipe objects, so they do nothing on 26.x.
+- JEI bridge, closing the gaps: a plugin's replacement search storage (`registerAdvancedSearch`) is filled with BEI's items and searched; the recipe layout drawable draws slots and shows slot and card tooltips; vanilla category extensions also work on 26.x in single-player worlds (the integrated server has the recipe objects; on a dedicated server they cannot); `getIngredientTypeWithSubtypesFromBase` answers for items; key mappings use BEI's real keys.
+- Checked in a client on NeoForge 1.21.1 with AE2 and Farmer's Delight: a synthetic category drawn through the recipe manager's layout drawable took a button press (the callback ran) and a mouse wheel on its scroll box, showed the slot item with the plugin's tooltip callback line, and a real Farmer's Delight cooking card was drawn through the same drawable with its items; AE2's interface screen still moves the panel and reports 9 ghost targets. The other nine builds were built and passed their tests but were not started in a client for this version.
 
 ## 2026.11.11 (all ten builds)
 

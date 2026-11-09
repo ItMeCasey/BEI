@@ -206,8 +206,8 @@ class JeiRegistryTest {
     void keyMappingsMatchBeisKeys() {
         IJeiKeyMappings keys = (IJeiKeyMappings) JeiRegistry.keyMappings(IJeiKeyMappings.class);
         assertFalse(keys.getShowRecipe().isUnbound());
-        assertEquals("R", keys.getShowRecipe().getTranslatedKeyMessage().getString());
-        assertEquals("U", keys.getShowUses().getTranslatedKeyMessage().getString());
+        assertTrue(keys.getShowRecipe().getTranslatedKeyMessage().getString().toLowerCase().endsWith("r"));
+        assertTrue(keys.getShowUses().getTranslatedKeyMessage().getString().toLowerCase().endsWith("u"));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -290,5 +290,24 @@ class JeiRegistryTest {
         var slot = gui.createRecipeSlotDrawable(RecipeIngredientRole.INPUT,
                 acceptor -> acceptor.addItemStack(new ItemStack(Items.STONE)), Set.of(), 0);
         assertEquals(Items.STONE, slot.getDisplayedItemStack().orElseThrow().getItem());
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void aPluginsSearchStorageFindsItems() {
+        ItemEntry target = entry(Items.STONE, "stone");
+        Object storage = JeiBridge.proxy((Class) mezz.jei.api.search.ISearchStorage.class, (self, method, args) -> {
+            if (method.getName().equals("getSearchResults")) {
+                ((java.util.function.Consumer) args[1]).accept(args[0].equals("zzz") ? List.of(target) : List.of());
+            }
+            return JeiBridge.fallback(method.getReturnType());
+        });
+        Object factory = JeiBridge.proxy((Class) mezz.jei.api.search.ISearchStorageFactory.class, (self, method, args) -> storage);
+        ((mezz.jei.api.registration.IAdvancedSearchRegistration) JeiRegistry.searchRegistration(
+                mezz.jei.api.registration.IAdvancedSearchRegistration.class, JeiBridge.helpers())).replaceSearchStorage(
+                (mezz.jei.api.search.ISearchStorageFactory) factory);
+        assertTrue(Search.parse("zzz").test(target));
+        assertFalse(Search.parse("yyy").test(target));
+        assertEquals(Optional.of(VanillaTypes.ITEM_STACK), JeiRegistry.ingredientManager().getIngredientTypeWithSubtypesFromBase(Items.STONE));
     }
 }

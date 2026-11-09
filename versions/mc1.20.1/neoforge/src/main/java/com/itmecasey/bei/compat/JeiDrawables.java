@@ -114,6 +114,13 @@ final class JeiDrawables {
         }
     }
 
+    /** Draws a tooltip box with these lines next to the mouse. */
+    static void tooltip(Object g, List<Component> lines, int x, int y) {
+        if (!lines.isEmpty()) {
+            com.itmecasey.bei.client.Ui.tip(new com.itmecasey.bei.client.Draw((GuiGraphics) g), net.minecraft.client.Minecraft.getInstance().font, lines, x, y);
+        }
+    }
+
     static void translated(Object g, int x, int y, Runnable action) {
         var pose = ((GuiGraphics) g).pose();
         pose.pushPose();

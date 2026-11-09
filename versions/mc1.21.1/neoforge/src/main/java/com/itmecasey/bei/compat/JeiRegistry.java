@@ -351,7 +351,8 @@ final class JeiRegistry {
                     return type == null || value == null ? Optional.empty() : Optional.of(clickable(type, value, area));
                 }
                 case "getIngredientTypeWithSubtypesFromBase":
-                    return Optional.empty();
+                    return args[0] instanceof net.minecraft.world.item.Item
+                            ? Optional.of(mezz.jei.api.constants.VanillaTypes.ITEM_STACK) : Optional.empty();
                 default:
                     JeiBridge.unsupported(mezz.jei.api.runtime.IIngredientManager.class, method);
                     return JeiBridge.fallback(method.getReturnType());
@@ -490,6 +491,7 @@ final class JeiRegistry {
                         synchronized (JeiRegistry.class) {
                             SEARCH_STORAGES.add(args[0]);
                         }
+                        JeiAliases.setStorageFactory(args[0]);
                         return null;
                     }
                     if (method.getName().equals("getJeiHelpers")) {
@@ -753,10 +755,21 @@ final class JeiRegistry {
                     at[1] = (int) args[1];
                     return null;
                 case "drawRecipe":
-                    JeiDrawables.translated(args[0], at[0], at[1], () ->
-                            JeiBridge.paintCore(category, bridged, args[0], (int) args[1] - at[0], (int) args[2] - at[1]));
+                    JeiDrawables.translated(args[0], at[0], at[1], () -> {
+                        for (JeiBridge.LayoutSlot slot : bridged.layoutSlots()) {
+                            JeiDrawables.drawSlotBackground(args[0], slot.x(), slot.y());
+                        }
+                        JeiBridge.paintCore(category, bridged, args[0], (int) args[1] - at[0], (int) args[2] - at[1]);
+                        for (JeiBridge.LayoutSlot slot : bridged.layoutSlots()) {
+                            if (!slot.items().isEmpty()) {
+                                JeiDrawables.item(args[0], slot.items().get((int) (System.currentTimeMillis() / 1000 % slot.items().size())),
+                                        slot.x() + 1, slot.y() + 1);
+                            }
+                        }
+                    });
                     return null;
                 case "drawOverlays":
+                    List<Component> tips = JeiBridge.tooltipCore(category, bridged, (int) args[1] - at[0], (int) args[2] - at[1]);
                     JeiDrawables.translated(args[0], at[0], at[1], () -> {
                         for (JeiBridge.Drawer overlay : bridged.overlays()) {
                             try {
@@ -766,6 +779,19 @@ final class JeiRegistry {
                             }
                         }
                     });
+                    JeiBridge.LayoutSlot hovered = slotAt(bridged, (int) args[1] - at[0], (int) args[2] - at[1]);
+                    if (hovered != null && !hovered.items().isEmpty()) {
+                        ItemStack stack = hovered.items().get(0);
+                        List<Component> lines = new ArrayList<>();
+                        lines.add(stack.getHoverName());
+                        List<Component> extra = JeiBridge.slotTooltipCore(bridged, stack);
+                        if (extra != null) {
+                            lines.addAll(extra);
+                        }
+                        JeiDrawables.tooltip(args[0], lines, (int) args[1], (int) args[2]);
+                    } else if (tips != null && (int) args[1] >= at[0] && (int) args[1] < at[0] + width && (int) args[2] >= at[1] && (int) args[2] < at[1] + height) {
+                        JeiDrawables.tooltip(args[0], tips, (int) args[1], (int) args[2]);
+                    }
                     return null;
                 case "isMouseOver":
                     return ((Number) args[0]).doubleValue() >= at[0] && ((Number) args[0]).doubleValue() < at[0] + width
@@ -833,14 +859,14 @@ final class JeiRegistry {
                 }
                 boolean used = false;
                 for (JeiBridge.Drawer part : bridged.extras()) {
-                    used |= part.click((int) ((Number) args[0]).doubleValue(), (int) ((Number) args[1]).doubleValue(), button);
+                    used |= part.click((int) ((Number) args[0]).doubleValue() - at[0], (int) ((Number) args[1]).doubleValue() - at[1], button);
                 }
                 yield used;
             }
             case "handleMouseScrolled" -> {
                 boolean used = false;
                 for (JeiBridge.Drawer part : bridged.extras()) {
-                    used |= part.scroll((int) ((Number) args[0]).doubleValue(), (int) ((Number) args[1]).doubleValue(),
+                    used |= part.scroll((int) ((Number) args[0]).doubleValue() - at[0], (int) ((Number) args[1]).doubleValue() - at[1],
                             ((Number) args[3]).doubleValue());
                 }
                 yield used;
@@ -973,6 +999,23 @@ final class JeiRegistry {
 
     // ---- key mappings and the config manager -------------------------------------------------------
 
+    /** BEI's own key binding behind a JEI key name, or null for the bookmark key (a fixed A) and where BEI's keys are absent. */
+    private static @Nullable Object beiKey(String jeiName) {
+        String field = switch (jeiName) {
+            case "getShowRecipe" -> "SHOW_RECIPES";
+            case "getShowUses" -> "SHOW_USES";
+            default -> null;
+        };
+        if (field == null) {
+            return null;
+        }
+        try {
+            return Class.forName("com.itmecasey.bei.client.ClientInit", false, JeiRegistry.class.getClassLoader()).getField(field).get(null);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return null;
+        }
+    }
+
     /** JEI's key mappings: BEI's own keys under JEI's names. */
     @SuppressWarnings({"rawtypes", "unchecked"})
     static Object keyMappings(Class<?> type) {
@@ -987,14 +1030,18 @@ final class JeiRegistry {
                 return JeiBridge.fluentOrDefault(self, method);
             }
             int code = label.charAt(0);
+            Object mapping = beiKey(method.getName());
             return JeiBridge.proxy((Class) method.getReturnType(), (inner, call, callArgs) -> switch (call.getName()) {
                 case "isActiveAndMatches" -> {
                     Object value = JeiCards.call(callArgs[0], "getValue");
-                    yield value instanceof Integer number && number == code
-                            || value instanceof Integer glfw && glfw == Character.toUpperCase(code);
+                    Object bound = mapping == null ? null : JeiCards.call(JeiCards.call(mapping, "getKey"), "getValue");
+                    yield value instanceof Integer number && (bound instanceof Integer b ? number.equals(b) : number == code);
                 }
-                case "isUnbound" -> false;
-                case "getTranslatedKeyMessage" -> Component.literal(label);
+                case "isUnbound" -> mapping != null && Boolean.TRUE.equals(JeiCards.call(mapping, "isUnbound"));
+                case "getTranslatedKeyMessage" -> {
+                    Object message = mapping == null ? null : JeiCards.call(mapping, "getTranslatedKeyMessage");
+                    yield message instanceof Component c ? c : Component.literal(label);
+                }
                 default -> JeiBridge.fallback(call.getReturnType());
             });
         });

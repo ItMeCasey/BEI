@@ -137,6 +137,11 @@ public final class JeiBridge {
         return BRIDGED.get(id);
     }
 
+    /** A copy of the bridged recipes (development checks). */
+    static synchronized List<Bridged> allBridged() {
+        return new ArrayList<>(BRIDGED.values());
+    }
+
     static @org.jetbrains.annotations.Nullable Class<?> ifaceClass(String name) {
         try {
             return Class.forName(name, false, JeiBridge.class.getClassLoader());
@@ -1305,9 +1310,10 @@ public final class JeiBridge {
     /** Extra tooltip lines a plugin's slot tooltip callbacks add for an item shown in one of the card's slots. */
     private static @org.jetbrains.annotations.Nullable List<Component> slotTooltipBridged(com.itmecasey.bei.api.CustomRecipe custom, ItemStack stack) {
         Bridged bridged = bridged(custom.id());
-        if (bridged == null) {
-            return null;
-        }
+        return bridged == null ? null : slotTooltipCore(bridged, stack);
+    }
+
+    static @org.jetbrains.annotations.Nullable List<Component> slotTooltipCore(Bridged bridged, ItemStack stack) {
         List<Component> lines = new ArrayList<>();
         for (int i = 0; i < bridged.layoutSlots().size(); i++) {
             LayoutSlot slot = bridged.layoutSlots().get(i);
@@ -1381,9 +1387,10 @@ public final class JeiBridge {
     private static @org.jetbrains.annotations.Nullable List<Component> tooltipBridged(IRecipeCategory<?> category,
             com.itmecasey.bei.api.CustomRecipe custom, int mx, int my) {
         Bridged bridged = bridged(custom.id());
-        if (bridged == null) {
-            return null;
-        }
+        return bridged == null ? null : tooltipCore(category, bridged, mx, my);
+    }
+
+    static @org.jetbrains.annotations.Nullable List<Component> tooltipCore(IRecipeCategory<?> category, Bridged bridged, int mx, int my) {
         List<Drawer> parts = bridged.extras();
         for (int i = parts.size() - 1; i >= 0; i--) {
             List<Component> fromPart = parts.get(i).tooltip(mx, my);
@@ -1886,6 +1893,35 @@ public final class JeiBridge {
             return new BeiRecipe(current.id(), type, width, inputs, outputs, current.stations(), null, null, current.recipeType());
         }
         return null;
+    }
+
+    /** Like {@link #extended}, for versions that keep no recipe objects on the client: a single-player world's own server has them. */
+    public static synchronized BeiRecipe extendedById(String id, BeiRecipe current) {
+        if (EXTENSIONS.isEmpty() || current == null) {
+            return null;
+        }
+        Object holder = serverHolder(id);
+        return holder == null ? null : extended(holder, current);
+    }
+
+    /** The recipe holder for a recipe id from the integrated server of a single-player world, or null. */
+    private static Object serverHolder(String id) {
+        try {
+            Object server = JeiCards.call(net.minecraft.client.Minecraft.getInstance(), "getSingleplayerServer");
+            Object manager = JeiCards.call(server, "getRecipeManager");
+            Object registry = net.minecraft.core.registries.Registries.class.getField("RECIPE").get(null);
+            Identifier location = Identifier.tryParse(id);
+            if (manager == null || location == null) {
+                return null;
+            }
+            Object key = net.minecraft.resources.ResourceKey.class.getMethod("create", net.minecraft.resources.ResourceKey.class,
+                    Identifier.class).invoke(null, registry, location);
+            Method byKey = JeiTransfers.find(manager.getClass(), "byKey", 1);
+            Object found = byKey == null ? null : byKey.invoke(manager, key);
+            return found instanceof Optional<?> optional ? optional.orElse(null) : null;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return null;
+        }
     }
 
     static Object vanillaRecipe(com.itmecasey.bei.api.TransferRecipe recipe) {

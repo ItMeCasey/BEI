@@ -180,6 +180,10 @@ public final class RecipeIndex {
                     continue;
                 }
                 recipe = recipe.withRecipeType(raw.typeId());
+                BeiRecipe extended = com.itmecasey.bei.compat.JeiHooks.extendedById(raw.id(), recipe);
+                if (extended != null) {
+                    recipe = extended.withRecipeType(raw.typeId());
+                }
                 if (com.itmecasey.bei.compat.ModJsCompat.hiddenCategory(recipe)) {
                     continue;
                 }

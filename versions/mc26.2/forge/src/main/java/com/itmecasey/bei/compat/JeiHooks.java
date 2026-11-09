@@ -84,6 +84,13 @@ public final class JeiHooks {
         return (BeiRecipe) call("extended", new Class<?>[] {Object.class, BeiRecipe.class}, new Object[] {holder, current}, null);
     }
 
+    public static BeiRecipe extendedById(String id, BeiRecipe current) {
+        if (current == null) {
+            return null;
+        }
+        return (BeiRecipe) call("extendedById", new Class<?>[] {String.class, BeiRecipe.class}, new Object[] {id, current}, null);
+    }
+
     public static boolean handlesRecipeType(String recipeType) {
         return (Boolean) call("handlesRecipeType", new Class<?>[] {String.class}, new Object[] {recipeType}, Boolean.FALSE);
     }

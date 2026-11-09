@@ -57,6 +57,7 @@ public final class Search {
         // A variant (an enchanted book) is also found by what its tooltip says, once that is read.
         return entry -> entry.nameLower.contains(word) || entry.id.contains(word)
                 || com.itmecasey.bei.compat.JeiAliases.ofItem(entry.id).contains(word)
+                || com.itmecasey.bei.compat.JeiAliases.hasStorage() && com.itmecasey.bei.compat.JeiAliases.storageMatches(entry, word)
                 || entry.variant && entry.tooltipLower != null && entry.tooltipLower.contains(word);
     }
 

@@ -26,6 +26,7 @@ final class JeiTour {
     private static final boolean ENABLED = System.getenv("BEI_JEI_TOUR") != null;
     private static final String ITEMS = System.getenv("BEI_JEI_TOUR_ITEMS");
     private static final String BLOCK = System.getenv("BEI_JEI_TOUR_BLOCK");
+    private static final boolean CHECK = System.getenv("BEI_JEI_TOUR_CHECK") != null;
 
     private record Step(int delay, Runnable action) {
     }
@@ -112,6 +113,12 @@ final class JeiTour {
                 shoot("uses_" + name.replace(':', '_'), 25);
             }
         }
+        if (CHECK) {
+            then(2, com.itmecasey.bei.compat.JeiSelfCheck::run);
+            then(2, () -> Minecraft.getInstance().setScreen(new CheckScreen()));
+            shoot("selfcheck_cards", 20);
+            then(2, () -> Minecraft.getInstance().setScreen(null));
+        }
         if (BLOCK != null) {
             then(2, () -> placeBlock(BLOCK));
             then(20, JeiTour::useBlock);
@@ -123,6 +130,19 @@ final class JeiTour {
         then(0, () -> Bookmarks.toggle("minecraft:iron_ingot"));
         then(0, () -> Bookmarks.toggle("minecraft:redstone"));
         then(5, RecipePopup::close);
+    }
+
+    /** A bare screen that draws the self-check cards with the mouse held over the synthetic card's slot. */
+    private static final class CheckScreen extends net.minecraft.client.gui.screens.Screen {
+        CheckScreen() {
+            super(net.minecraft.network.chat.Component.literal("BEI check"));
+        }
+
+        @Override
+        public void render(net.minecraft.client.gui.GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+            int[] point = com.itmecasey.bei.compat.JeiSelfCheck.slotPoint();
+            com.itmecasey.bei.compat.JeiSelfCheck.draw(graphics, point[0], point[1]);
+        }
     }
 
     private static net.minecraft.core.BlockPos blockPos;
