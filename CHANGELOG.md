@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.15 (all ten builds)
+
+- Item browser: when the index is built while joining a world (before the world exists), potions and enchanted books are now added by a rebuild on the first tick that has a world. Before, they could be missing until the setting was toggled.
+- JEI bridge: logs when a plugin registers a recipe manager plugin, a category decorator or a recipe button factory, and how many recipes manager plugins add.
+- Development screen tour (`BEI_SCREENS`) on Forge 1.21.1 and both 1.20.1 builds; the dev check's category extension no longer depends on calling JEI interfaces directly.
+- Checked in clients: screen tour on Forge 1.21.1 (dev client) and on the Forge and NeoForge 1.20.1 jars in a real Forge 47.4.28 install; AE2 on NeoForge 26.3 registering a recipe manager plugin that BEI accepts; a category extension applied on Forge 26.1.2 with the built jar (BarelyStorage's dev client).
+
 ## 2026.11.14 (all ten builds, 26.x for the packet fix)
 
 Bugs found by running real AE2 and BarelyStorage against the bridge, plus a screen tour on every 26.x build.

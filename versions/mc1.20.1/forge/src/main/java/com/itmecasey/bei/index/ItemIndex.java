@@ -41,6 +41,8 @@ public final class ItemIndex {
         return entries;
     }
 
+    private static volatile boolean variantsPending;
+
     public static boolean ready() {
         return ready;
     }
@@ -69,9 +71,15 @@ public final class ItemIndex {
      */
     private static List<ItemStack> collectVariants() {
         Minecraft game = Minecraft.getInstance();
-        if (!BeiConfig.itemVariants() || game.level == null || game.player == null) {
+        if (!BeiConfig.itemVariants()) {
             return List.of();
         }
+        if (game.level == null || game.player == null) {
+            // Joining: the world is not there yet, so the variants are added by a rebuild on the first tick that has one.
+            variantsPending = true;
+            return List.of();
+        }
+        variantsPending = false;
         try {
             CreativeModeTabs.tryRebuildTabContents(game.player.connection.enabledFeatures(), false, game.level.registryAccess());
             List<ItemStack> all = new ArrayList<>();
@@ -209,6 +217,10 @@ public final class ItemIndex {
     public static void tickTooltips(long budgetNanos) {
         Minecraft game = Minecraft.getInstance();
         List<ItemEntry> all = entries;
+        if (variantsPending && ready && game.level != null && game.player != null) {
+            rebuild();
+            return;
+        }
         if (!ready || tooltipCursor >= all.size() || game.level == null || game.player == null) {
             return;
         }

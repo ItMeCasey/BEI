@@ -460,10 +460,8 @@ public final class JeiBridge {
                     }
                     Bei.LOGGER.info("BEI-CHECK dev extension setRecipe with {} arguments, builder {}", method.getParameterCount(), builder != null);
                     // Reflective calls: a direct call into the JEI interfaces would trip Forge's class loader constraints here.
-                    JeiCards.call(JeiCards.call(builder, "addSlot", RecipeIngredientRole.INPUT, 0, 0), "addItemStack",
-                            new ItemStack(net.minecraft.world.item.Items.COAL));
-                    JeiCards.call(JeiCards.call(builder, "addSlot", RecipeIngredientRole.OUTPUT, 40, 0), "addItemStack",
-                            new ItemStack(net.minecraft.world.item.Items.DIAMOND));
+                    devAdd(JeiCards.call(builder, "addSlot", RecipeIngredientRole.INPUT, 0, 0), new ItemStack(net.minecraft.world.item.Items.COAL));
+                    devAdd(JeiCards.call(builder, "addSlot", RecipeIngredientRole.OUTPUT, 40, 0), new ItemStack(net.minecraft.world.item.Items.DIAMOND));
                     return null;
                 }
                 return method.isDefault() ? DEFER : fallback(method.getReturnType());
@@ -476,6 +474,28 @@ public final class JeiBridge {
         } catch (RuntimeException | LinkageError e) {
             Bei.LOGGER.warn("BEI-CHECK dev check failed", e);
         }
+    }
+
+    /** Adds a stack to a slot builder by reflection, with whichever method this JEI API version has (addItemStack, or add on 26.x). */
+    private static void devAdd(Object slot, ItemStack stack) {
+        if (slot == null) {
+            Bei.LOGGER.info("BEI-CHECK dev extension got no slot builder");
+            return;
+        }
+        for (String name : new String[] {"addItemStack", "add"}) {
+            for (java.lang.reflect.Method method : slot.getClass().getMethods()) {
+                if (method.getName().equals(name) && method.getParameterCount() == 1) {
+                    try {
+                        method.invoke(slot, stack);
+                        return;
+                    } catch (ReflectiveOperationException | IllegalArgumentException | LinkageError e) {
+                        Bei.LOGGER.info("BEI-CHECK dev extension {}({}) failed: {} (stack loader {}, parameter loader {})", name, method.getParameterTypes()[0].getName(), e.toString(),
+                                stack.getClass().getClassLoader(), method.getParameterTypes()[0].getClassLoader());
+                    }
+                }
+            }
+        }
+        Bei.LOGGER.info("BEI-CHECK dev extension found no way to add a stack to {}", slot.getClass().getName());
     }
 
     /** Marks recipes as handed to the index, so later additions go in one by one (unit tests). */
@@ -1014,7 +1034,11 @@ public final class JeiBridge {
     private static void mergeManagerPlugins() {
         for (Map.Entry<IRecipeType<?>, IRecipeCategory<?>> entry : CATEGORIES.entrySet()) {
             List<Object> known = RECIPES.computeIfAbsent(entry.getKey(), key -> new ArrayList<>());
-            known.addAll(JeiRegistry.pluginRecipes(entry.getKey(), entry.getValue(), known));
+            List<Object> added = JeiRegistry.pluginRecipes(entry.getKey(), entry.getValue(), known);
+            if (!added.isEmpty()) {
+                Bei.LOGGER.info("BEI JEI: recipe manager plugins added {} recipes to {}", added.size(), entry.getKey().getUid());
+            }
+            known.addAll(added);
         }
     }
 

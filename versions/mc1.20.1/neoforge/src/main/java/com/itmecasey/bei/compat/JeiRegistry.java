@@ -525,6 +525,7 @@ final class JeiRegistry {
                     if (args[0] != null) {
                         synchronized (JeiRegistry.class) {
                             MANAGER_PLUGINS.add(args[0]);
+                            Bei.LOGGER.info("BEI JEI: a plugin registered a recipe manager plugin: {}", args[0].getClass().getName());
                         }
                     }
                     return null;
@@ -532,6 +533,7 @@ final class JeiRegistry {
                     if (args[0] instanceof RecipeType<?> type && args[1] != null) {
                         synchronized (JeiRegistry.class) {
                             TYPED_PLUGINS.computeIfAbsent(type, key -> new ArrayList<>()).add(args[1]);
+                            Bei.LOGGER.info("BEI JEI: a plugin registered a recipe manager plugin for {}: {}", type.getUid(), args[1].getClass().getName());
                         }
                     }
                     return null;
@@ -539,6 +541,7 @@ final class JeiRegistry {
                     if (args[0] instanceof RecipeType<?> type && args[1] != null) {
                         synchronized (JeiRegistry.class) {
                             DECORATORS.computeIfAbsent(type, key -> new ArrayList<>()).add(args[1]);
+                            Bei.LOGGER.info("BEI JEI: a plugin registered a category decorator for {}: {}", type.getUid(), args[1].getClass().getName());
                         }
                     }
                     return null;
@@ -546,6 +549,7 @@ final class JeiRegistry {
                     if (args[0] != null) {
                         synchronized (JeiRegistry.class) {
                             BUTTON_FACTORIES.add(args[0]);
+                            Bei.LOGGER.info("BEI JEI: a plugin registered a recipe button factory: {}", args[0].getClass().getName());
                         }
                     }
                     return null;
