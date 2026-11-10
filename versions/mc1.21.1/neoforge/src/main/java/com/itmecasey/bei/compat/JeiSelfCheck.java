@@ -129,6 +129,27 @@ public final class JeiSelfCheck {
         }
     }
 
+    /** A dev handler on the crafting table's menu: the + button of a recipe card goes through the real transfer adapter to it. */
+    public static int[] craftingHandlerCalls = {0};
+    private static JeiBridge.DevHandler craftingHandler;
+
+    public static void registerCraftingHandler() {
+        craftingHandler = JeiBridge.devHandler(net.minecraft.world.inventory.CraftingMenu.class);
+        Bei.LOGGER.info("BEI-CHECK dev transfer handler registered for the crafting table menu");
+    }
+
+    public static int craftingHandlerCalls() {
+        return craftingHandler == null ? -1 : craftingHandler.calls.get();
+    }
+
+    /** Registers an information page the way a JEI plugin does (addItemStackInfo) and puts it in the index. */
+    public static void addInfoPage() {
+        JeiBridge.recipeRegistration().addItemStackInfo(new ItemStack(Items.EMERALD), Component.literal("Dev info page: emeralds trade with villagers."),
+                Component.literal("Registered through addItemStackInfo by the self check."));
+        JeiBridge.devIndexInfo();
+        Bei.LOGGER.info("BEI-CHECK info page registered through addItemStackInfo");
+    }
+
     /** Where the first slot of the synthetic card is on screen. */
     public static int[] slotPoint() {
         return new int[] {20 + 6 + 8, 20 + 6 + 8};

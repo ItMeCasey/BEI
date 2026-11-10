@@ -27,6 +27,7 @@ final class JeiTour {
     private static final String ITEMS = System.getenv("BEI_JEI_TOUR_ITEMS");
     private static final String BLOCK = System.getenv("BEI_JEI_TOUR_BLOCK");
     private static final boolean CHECK = System.getenv("BEI_JEI_TOUR_CHECK") != null;
+    private static final boolean UI = System.getenv("BEI_JEI_TOUR_UI") != null;
 
     private record Step(int delay, Runnable action) {
     }
@@ -113,6 +114,30 @@ final class JeiTour {
                 shoot("uses_" + name.replace(':', '_'), 25);
             }
         }
+        if (UI) {
+            then(2, () -> open("minecraft:stone", false));
+            then(8, () -> open("minecraft:diamond", false));
+            then(8, () -> Bei.LOGGER.info("BEI-UI history {} forward {}", popupSize("HISTORY"), popupSize("FORWARD")));
+            then(2, () -> clickPopup(true));
+            then(8, () -> Bei.LOGGER.info("BEI-UI after back click: history {} forward {}", popupSize("HISTORY"), popupSize("FORWARD")));
+            shoot("ui_after_back", 8);
+            then(2, () -> clickPopup(false));
+            then(8, () -> Bei.LOGGER.info("BEI-UI after forward click: history {} forward {}", popupSize("HISTORY"), popupSize("FORWARD")));
+            shoot("ui_after_forward", 8);
+            then(2, com.itmecasey.bei.compat.JeiSelfCheck::addInfoPage);
+            then(10, () -> open("minecraft:emerald", false));
+            then(10, () -> clickStation(true));
+            shoot("ui_info_page", 25);
+            then(2, RecipePopup::close);
+            then(2, com.itmecasey.bei.compat.JeiSelfCheck::registerCraftingHandler);
+            then(2, () -> placeBlock("minecraft:crafting_table"));
+            then(20, JeiTour::useBlock);
+            then(60, () -> open("minecraft:stick", false));
+            then(30, JeiTour::clickPlus);
+            then(10, () -> Bei.LOGGER.info("BEI-UI transfer handler calls after the + click: {}", com.itmecasey.bei.compat.JeiSelfCheck.craftingHandlerCalls()));
+            shoot("ui_crafting_plus", 10);
+            then(2, () -> Minecraft.getInstance().setScreen(null));
+        }
         if (CHECK) {
             then(2, com.itmecasey.bei.compat.JeiSelfCheck::run);
             then(2, () -> Minecraft.getInstance().setScreen(new CheckScreen()));
@@ -142,6 +167,91 @@ final class JeiTour {
         public void render(net.minecraft.client.gui.GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             int[] point = com.itmecasey.bei.compat.JeiSelfCheck.slotPoint();
             com.itmecasey.bei.compat.JeiSelfCheck.draw(graphics, point[0], point[1]);
+        }
+    }
+
+    private static int popupSize(String field) {
+        try {
+            var f = RecipePopup.class.getDeclaredField(field);
+            f.setAccessible(true);
+            return ((java.util.Collection<?>) f.get(null)).size();
+        } catch (ReflectiveOperationException e) {
+            return -1;
+        }
+    }
+
+    /** Clicks the popup's back or forward button through its own click handler (no OS cursor). */
+    private static void clickPopup(boolean back) {
+        try {
+            var posField = RecipePopup.class.getDeclaredField("POS");
+            posField.setAccessible(true);
+            Object pos = posField.get(null);
+            var xm = pos.getClass().getDeclaredMethod("x");
+            xm.setAccessible(true);
+            var ym = pos.getClass().getDeclaredMethod("y");
+            ym.setAccessible(true);
+            int px = (int) xm.invoke(pos);
+            int py = (int) ym.invoke(pos);
+            int x = px + 6 + (!back && popupSize("HISTORY") > 1 ? 20 : 0) + 8;
+            int y = py + 26 + 8;
+            boolean used = RecipePopup.mouseClicked(new com.itmecasey.bei.client.input.MouseButtonEvent(x, y, 0, 0));
+            Bei.LOGGER.info("BEI-UI clicked the {} button at {},{} used={}", back ? "back" : "forward", x, y, used);
+        } catch (ReflectiveOperationException e) {
+            Bei.LOGGER.warn("BEI-UI popup click failed", e);
+        }
+    }
+
+    /** Clicks the last (or first) station tab of the open popup through its own click handler. */
+    private static void clickStation(boolean last) {
+        try {
+            var f = RecipePopup.class.getDeclaredField("STATIONS");
+            f.setAccessible(true);
+            java.util.List<?> stations = (java.util.List<?>) f.get(null);
+            if (stations.isEmpty()) {
+                return;
+            }
+            Object button = stations.get(last ? stations.size() - 1 : 0);
+            var mx = button.getClass().getDeclaredMethod("x");
+            mx.setAccessible(true);
+            var my = button.getClass().getDeclaredMethod("y");
+            my.setAccessible(true);
+            var st = button.getClass().getDeclaredMethod("station");
+            st.setAccessible(true);
+            Object station = st.invoke(button);
+            var title = station.getClass().getDeclaredMethod("key");
+            title.setAccessible(true);
+            int x = (int) mx.invoke(button) + 8;
+            int y = (int) my.invoke(button) + 8;
+            RecipePopup.mouseClicked(new com.itmecasey.bei.client.input.MouseButtonEvent(x, y, 0, 0));
+            Bei.LOGGER.info("BEI-UI clicked station tab {} of {} ({})", last ? stations.size() : 1, stations.size(), title.invoke(station));
+        } catch (ReflectiveOperationException e) {
+            Bei.LOGGER.warn("BEI-UI station click failed", e);
+        }
+    }
+
+    /** Clicks the first + button of the open popup through its own click handler. */
+    private static void clickPlus() {
+        try {
+            var f = RecipePopup.class.getDeclaredField("PLUS");
+            f.setAccessible(true);
+            java.util.List<?> plus = (java.util.List<?>) f.get(null);
+            Bei.LOGGER.info("BEI-UI + buttons shown: {}", plus.size());
+            if (plus.isEmpty()) {
+                return;
+            }
+            Object button = plus.get(0);
+            var accessor = button.getClass().getDeclaredMethod("x");
+            accessor.setAccessible(true);
+            int x = (int) accessor.invoke(button);
+            var accessorY = button.getClass().getDeclaredMethod("y");
+            accessorY.setAccessible(true);
+            int y = (int) accessorY.invoke(button);
+            var handlerAccessor = button.getClass().getDeclaredMethod("handler");
+            handlerAccessor.setAccessible(true);
+            Bei.LOGGER.info("BEI-UI first + button at {},{} handler={}", x, y, handlerAccessor.invoke(button));
+            RecipePopup.mouseClicked(new com.itmecasey.bei.client.input.MouseButtonEvent(x + 6, y + 6, 0, 0));
+        } catch (ReflectiveOperationException e) {
+            Bei.LOGGER.warn("BEI-UI plus click failed", e);
         }
     }
 

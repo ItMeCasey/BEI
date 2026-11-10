@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.11.13 (all ten builds)
+
+- JEI bridge, 26.x: recipe slots made by plugins were empty because the 26.x JEI API adds ingredients through `add(...)` (items, item-likes, fluids, game ingredients, item templates, typed values) instead of `addItemStack` and friends. Slots now take all of them, on every build.
+- JEI bridge: slot builders also take `addItemStack`, `addItemLike`, `addTypedIngredient`, `addItemStacks` and `addItemLikes` directly when a JEI API version has them as plain methods.
+- Vanilla category extensions look the recipe up in a single-player world's integrated server on 26.x and also by recipe id on older versions.
+- Development checks (environment variable `BEI_JEI_SELFTEST`, off by default): a stand-in transfer handler and category extension run through the real adapters after joining a world and log `BEI-CHECK` lines.
+- Checked in clients: the recipe popup's back and forward buttons, an information page from `addItemStackInfo`, and a + click reaching a transfer handler on NeoForge 1.21.1; a transfer handler receiving a recipe object on Forge 26.1.2 and NeoForge 26.3; a category extension applied on NeoForge 26.3.
+
 ## 2026.11.12 (all ten builds)
 
 Zero unsupported JEI calls that BEI can answer. Plugins now get working answers where they used to get a log line.

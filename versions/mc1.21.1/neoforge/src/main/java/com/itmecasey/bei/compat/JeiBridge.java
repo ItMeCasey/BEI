@@ -359,6 +359,125 @@ public final class JeiBridge {
         EXTENSIONS.add(new Extension(kind, recipeClass, extension));
     }
 
+    // ---- development checks (environment BEI_JEI_SELFTEST) -----------------------------------------
+
+    private static boolean devStarted;
+    private static IRecipeRegistration lastRecipeRegistration;
+
+    /** The recipe registration plugins got, for development checks. */
+    static IRecipeRegistration recipeRegistration() {
+        return lastRecipeRegistration;
+    }
+
+    /** Puts the information page a plugin just registered into the recipe index (development checks). */
+    static synchronized void devIndexInfo() {
+        if (INFO.isEmpty()) {
+            return;
+        }
+        Info info = INFO.get(INFO.size() - 1);
+        com.itmecasey.bei.index.RecipeIndex.addRecipes(new ArrayList<>(ModJsCompat.infoPages("jei/info/dev" + INFO.size(), info.items(), info.lines())));
+    }
+
+    /** A stand-in JEI transfer handler: records that the adapter handed it a recipe object. */
+    static final class DevHandler {
+        private final Class<?> menu;
+        final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        volatile String lastRecipeClass = "";
+
+        DevHandler(Class<?> menu) {
+            this.menu = menu;
+        }
+
+        public Class<?> getContainerClass() {
+            return menu;
+        }
+
+        public Object transferRecipe(Object container, Object recipe, Object slots, Object player, boolean maxTransfer, boolean doTransfer) {
+            calls.incrementAndGet();
+            lastRecipeClass = recipe == null ? "null" : recipe.getClass().getName();
+            Bei.LOGGER.info("BEI-CHECK dev transfer handler called: recipe object {} doTransfer={}", lastRecipeClass, doTransfer);
+            return null;
+        }
+    }
+
+    /** Registers a dev handler for a menu class (crafting recipes) and returns it. */
+    static DevHandler devHandler(Class<?> menuClass) {
+        DevHandler handler = new DevHandler(menuClass);
+        JeiTransfers.add(handler, "minecraft:crafting");
+        JeiTransfers.install();
+        return handler;
+    }
+
+    /** Starts the development check once the world is joined, when BEI_JEI_SELFTEST is set. */
+    private static void startDevCheck() {
+        if (devStarted || System.getenv("BEI_JEI_SELFTEST") == null) {
+            return;
+        }
+        devStarted = true;
+        Thread thread = new Thread(() -> {
+            for (int i = 0; i < 120; i++) {
+                net.minecraft.client.Minecraft game = net.minecraft.client.Minecraft.getInstance();
+                if (game != null && game.player != null && game.level != null) {
+                    try {
+                        Thread.sleep(8000);
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                    game.execute(JeiBridge::devCheck);
+                    return;
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
+        }, "BEI-dev-check");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    /** Runs a dev transfer handler and a dev category extension through the real adapters and logs what they saw. */
+    static void devCheck() {
+        try {
+            net.minecraft.client.Minecraft game = net.minecraft.client.Minecraft.getInstance();
+            var menu = game.player.inventoryMenu;
+            DevHandler handler = devHandler(menu.getClass());
+            BeiRecipe recipe = new BeiRecipe("minecraft:stick", "ShapedCrafting", 1,
+                    List.of(List.of(new ItemStack(net.minecraft.world.item.Items.OAK_PLANKS)), List.of(new ItemStack(net.minecraft.world.item.Items.OAK_PLANKS))),
+                    List.of(new ItemStack(net.minecraft.world.item.Items.STICK, 4)), List.of());
+            var view = com.itmecasey.bei.plugin.TransferHost.view(menu, recipe, false, false, false);
+            boolean done = com.itmecasey.bei.plugin.TransferHost.transfer(menu, recipe, false, false);
+            Bei.LOGGER.info("BEI-CHECK dev transfer: button mode {} transfer={} handlerCalls={} recipe object {}", view.mode(), done,
+                    handler.calls.get(), handler.lastRecipeClass);
+            Object extension = proxyFirst(ifaceClass("mezz.jei.api.recipe.category.extensions.vanilla.crafting.ICraftingCategoryExtension"), (self, method, args) -> {
+                if (method.getName().equals("setRecipe") && method.getParameterCount() >= 3) {
+                    Object builder = null;
+                    for (Object arg : args) {
+                        if (arg != null && JeiTransfers.find(arg.getClass(), "addSlot", 3) != null) {
+                            builder = arg;
+                        }
+                    }
+                    Bei.LOGGER.info("BEI-CHECK dev extension setRecipe with {} arguments, builder {}", method.getParameterCount(), builder != null);
+                    // Reflective calls: a direct call into the JEI interfaces would trip Forge's class loader constraints here.
+                    JeiCards.call(JeiCards.call(builder, "addSlot", RecipeIngredientRole.INPUT, 0, 0), "addItemStack",
+                            new ItemStack(net.minecraft.world.item.Items.COAL));
+                    JeiCards.call(JeiCards.call(builder, "addSlot", RecipeIngredientRole.OUTPUT, 40, 0), "addItemStack",
+                            new ItemStack(net.minecraft.world.item.Items.DIAMOND));
+                    return null;
+                }
+                return method.isDefault() ? DEFER : fallback(method.getReturnType());
+            });
+            putExtension("crafting", net.minecraft.world.item.crafting.ShapedRecipe.class, extension);
+            BeiRecipe changed = extendedById("minecraft:stick", recipe);
+            Bei.LOGGER.info("BEI-CHECK server holder: {} extension: {}", serverHolderNote, extendedNote);
+            Bei.LOGGER.info("BEI-CHECK dev category extension on the game recipe: {}", changed == null ? "not applied"
+                    : "applied, output " + changed.outputs().get(0).getItem() + " input " + changed.inputs().get(0).get(0).getItem());
+        } catch (RuntimeException | LinkageError e) {
+            Bei.LOGGER.warn("BEI-CHECK dev check failed", e);
+        }
+    }
+
     /** Marks recipes as handed to the index, so later additions go in one by one (unit tests). */
     static synchronized void putContributed(boolean value) {
         contributed = value;
@@ -490,6 +609,7 @@ public final class JeiBridge {
             unsupported(IRecipeRegistration.class, method);
             return fallback(method.getReturnType());
         });
+        lastRecipeRegistration = recipes;
         IRecipeCatalystRegistration catalysts = proxy(IRecipeCatalystRegistration.class,
                 (self, method, args) -> catalystCall(method, args, helpers));
         ISubtypeRegistration subtypes = stub(ISubtypeRegistration.class, helpers);
@@ -932,6 +1052,7 @@ public final class JeiBridge {
             return List.of();
         }
         contributed = true;
+        startDevCheck();
         BRIDGED.clear();
         List<BeiRecipe> out = new ArrayList<>();
         int pages = 0;
@@ -1697,6 +1818,40 @@ public final class JeiBridge {
         }
     }
 
+    /** The stacks inside a game ingredient or item template (versions differ in how they list them), found by reflection. */
+    static List<ItemStack> stacksOf(Object value) {
+        List<ItemStack> out = new ArrayList<>();
+        try {
+            Method create = JeiTransfers.find(value.getClass(), "create", 0);
+            if (create != null && create.invoke(value) instanceof ItemStack made) {
+                out.add(made);
+                return out;
+            }
+            for (String name : new String[] {"getItems", "items"}) {
+                Method list = JeiTransfers.find(value.getClass(), name, 0);
+                if (list == null) {
+                    continue;
+                }
+                Object result = list.invoke(value);
+                java.util.stream.Stream<?> stream = result instanceof java.util.stream.Stream<?> st ? st : values(result).stream();
+                stream.forEach(entry -> {
+                    if (entry instanceof ItemStack stack) {
+                        out.add(stack.copy());
+                    } else if (entry != null) {
+                        Object held = JeiCards.call(entry, "value");
+                        if (held instanceof net.minecraft.world.item.Item item) {
+                            out.add(new ItemStack(item));
+                        }
+                    }
+                });
+                break;
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            // Nothing usable in it.
+        }
+        return out;
+    }
+
     static ItemStack item(Object value) {
         if (value instanceof ItemStack stack) {
             return stack;
@@ -1825,6 +1980,7 @@ public final class JeiBridge {
         }
         for (Extension ext : EXTENSIONS) {
             if (!ext.recipeClass().isInstance(recipe)) {
+                extendedNote = "recipe is " + recipe.getClass().getName() + ", extension wants " + ext.recipeClass().getName();
                 continue;
             }
             Method setRecipe = null;
@@ -1835,6 +1991,7 @@ public final class JeiBridge {
                 }
             }
             if (setRecipe == null) {
+                extendedNote = "no setRecipe on " + ext.extension().getClass().getName();
                 continue;
             }
             List<LayoutSlot> slots = new ArrayList<>();
@@ -1858,6 +2015,7 @@ public final class JeiBridge {
                 setRecipe.invoke(ext.extension(), args);
             } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
                 Bei.LOGGER.debug("A JEI category extension failed on {}", current.id(), e);
+                extendedNote = "setRecipe failed: " + e + " cause " + e.getCause();
                 continue;
             }
             List<List<ItemStack>> inputs = new ArrayList<>();
@@ -1874,6 +2032,11 @@ public final class JeiBridge {
                 }
             }
             if (outputs.isEmpty()) {
+                StringBuilder detail = new StringBuilder("extension laid out no output; slots=" + slots.size());
+                for (LayoutSlot slot : slots) {
+                    detail.append(" [").append(slot.role()).append(" items=").append(slot.items().size()).append("]");
+                }
+                extendedNote = detail.toString();
                 continue;
             }
             int width = 0;
@@ -1905,10 +2068,14 @@ public final class JeiBridge {
     }
 
     /** The recipe holder for a recipe id from the integrated server of a single-player world, or null. */
+    private static String serverHolderNote = "";
+    private static String extendedNote = "";
+
     private static Object serverHolder(String id) {
         try {
             Object server = JeiCards.call(net.minecraft.client.Minecraft.getInstance(), "getSingleplayerServer");
             Object manager = JeiCards.call(server, "getRecipeManager");
+            serverHolderNote = "server " + (server == null ? "none" : "found") + ", manager " + (manager == null ? "none" : manager.getClass().getSimpleName());
             Object registry = net.minecraft.core.registries.Registries.class.getField("RECIPE").get(null);
             ResourceLocation location = ResourceLocation.tryParse(id);
             if (manager == null || location == null) {
@@ -1917,9 +2084,18 @@ public final class JeiBridge {
             Object key = net.minecraft.resources.ResourceKey.class.getMethod("create", net.minecraft.resources.ResourceKey.class,
                     ResourceLocation.class).invoke(null, registry, location);
             Method byKey = JeiTransfers.find(manager.getClass(), "byKey", 1);
-            Object found = byKey == null ? null : byKey.invoke(manager, key);
+            Object found = null;
+            if (byKey != null) {
+                try {
+                    found = byKey.invoke(manager, key);
+                } catch (IllegalArgumentException e) {
+                    found = byKey.invoke(manager, location);
+                }
+            }
+            serverHolderNote += ", byKey " + found;
             return found instanceof Optional<?> optional ? optional.orElse(null) : null;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            serverHolderNote += " / failed: " + e;
             return null;
         }
     }
@@ -2104,6 +2280,10 @@ public final class JeiBridge {
 
         IRecipeSlotBuilder proxy() {
             return JeiBridge.proxy(IRecipeSlotBuilder.class, (self, method, args) -> {
+                if (System.getenv("BEI_JEI_SELFTEST") != null && method.getName().startsWith("add")) {
+                    Bei.LOGGER.info("BEI-CHECK slot builder call {} with {} argument(s), first {}", method.getName(), args.length,
+                            args.length > 0 && args[0] != null ? args[0].getClass().getName() : null);
+                }
                 switch (method.getName()) {
                     case "setPosition" -> {
                         x = (int) args[0];
@@ -2165,6 +2345,21 @@ public final class JeiBridge {
                         }
                     }
                     case "addIngredient" -> add(args[1]);
+                    // Newer JEI APIs (26.x) take everything through add(...): items, fluids, ingredients, typed values.
+                    case "add" -> addAny(args);
+                    // Some JEI API versions have these as plain methods instead of defaults over addIngredient.
+                    case "addItemStack", "addItemLike", "addTypedIngredient" -> {
+                        if (args.length >= 1 && args[0] != null && !(args[0] instanceof IIngredientType<?>)) {
+                            add(args[0]);
+                        } else if (args.length >= 2) {
+                            add(args[1]);
+                        }
+                    }
+                    case "addItemStacks", "addItemLikes" -> {
+                        for (Object value : values(args[args.length - 1])) {
+                            add(value);
+                        }
+                    }
                     case "addIngredients", "addIngredientsUnsafe", "addTypedIngredients", "addOptionalTypedIngredients" -> {
                         for (Object value : values(args[args.length - 1])) {
                             if (value instanceof Optional<?> optional) {
@@ -2182,6 +2377,31 @@ public final class JeiBridge {
                 }
                 return fluentOrDefault(self, method);
             });
+        }
+
+        private void addAny(Object[] args) {
+            if (args.length == 0 || args[0] == null) {
+                return;
+            }
+            Object first = args[0];
+            if (first instanceof IIngredientType<?>) {
+                if (args.length > 1) {
+                    addAny(new Object[] {args[1]});
+                }
+            } else if (first instanceof net.minecraft.world.level.material.Fluid fluid) {
+                ItemStack bucket = fluidBucket(fluid, args.length >= 2 && args[1] instanceof Number amount ? amount.longValue() : 0L);
+                if (!bucket.isEmpty()) {
+                    items.add(bucket);
+                    originals.add(fluid);
+                }
+            } else if (first instanceof ItemStack || first instanceof ItemLike || first instanceof ITypedIngredient<?>) {
+                add(first);
+            } else {
+                for (ItemStack stack : stacksOf(first)) {
+                    items.add(stack);
+                    originals.add(stack);
+                }
+            }
         }
 
         private void add(Object value) {
