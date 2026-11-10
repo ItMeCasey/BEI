@@ -209,22 +209,67 @@ public final class ModJsCompat {
 
     /** A card made of the page's paragraphs, wrapped to the card width; its height fits the text. */
     private static RecipeCategory infoCategory(List<String> paragraphs) {
-        var font = Minecraft.getInstance().font;
-        List<List<FormattedCharSequence>> wrapped = new ArrayList<>();
+        List<List<FormattedCharSequence>> wrapped = wrapOnRenderThread(paragraphs);
         int height = 0;
-        for (String paragraph : paragraphs) {
-            List<FormattedCharSequence> lines = font.split(Component.literal(paragraph), INFO_WIDTH - 4);
-            wrapped.add(lines);
-            height += lines.size() * 10 + 4;
+        if (wrapped == null) {
+            // The font could not be used (no render thread to ask): estimate the height; the card wraps when drawn.
+            wrapped = new ArrayList<>();
+            for (String paragraph : paragraphs) {
+                int lines = Math.max(1, (paragraph.length() * 6 + INFO_WIDTH - 5) / (INFO_WIDTH - 4));
+                height += lines * 10 + 4;
+            }
+        } else {
+            for (List<FormattedCharSequence> lines : wrapped) {
+                height += lines.size() * 10 + 4;
+            }
         }
         int total = Math.max(18, height - 4);
-        CardPainter painter = (graphics, recipe, mx, my) -> paintInfo(new Draw(graphics), wrapped);
+        final List<List<FormattedCharSequence>> ready = wrapped;
+        CardPainter painter = (graphics, recipe, mx, my) -> paintInfo(new Draw(graphics), ready.isEmpty() ? wrapNow(paragraphs) : ready);
         return RecipeCategory.builder(INFO_ID)
                 .title(Component.literal("Information"))
                 .station(new ItemStack(Items.BOOK))
                 .size(INFO_WIDTH, total)
                 .painter(painter)
                 .build();
+    }
+
+    /**
+     * Wraps the paragraphs with the game's font. Wrapping can bake glyphs, which only the render thread may do (26.x
+     * asserts it), and recipes are read on a worker thread, so the work is handed to the render thread and awaited.
+     */
+    private static List<List<FormattedCharSequence>> wrapNow(List<String> paragraphs) {
+        var font = Minecraft.getInstance().font;
+        List<List<FormattedCharSequence>> out = new ArrayList<>();
+        for (String paragraph : paragraphs) {
+            out.add(font.split(Component.literal(paragraph), INFO_WIDTH - 4));
+        }
+        return out;
+    }
+
+    private static List<List<FormattedCharSequence>> wrapOnRenderThread(List<String> paragraphs) {
+        Minecraft game = Minecraft.getInstance();
+        if (game == null) {
+            return null;
+        }
+        java.util.function.Supplier<List<List<FormattedCharSequence>>> wrap = () -> {
+            List<List<FormattedCharSequence>> out = new ArrayList<>();
+            for (String paragraph : paragraphs) {
+                out.add(game.font.split(Component.literal(paragraph), INFO_WIDTH - 4));
+            }
+            return out;
+        };
+        if (game.isSameThread()) {
+            return wrap.get();
+        }
+        try {
+            return game.submit(wrap).get(10, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException | RuntimeException e) {
+            return null;
+        }
     }
 
     private static void paintInfo(Draw graphics, List<List<FormattedCharSequence>> paragraphs) {

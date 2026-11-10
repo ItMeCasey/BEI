@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026.11.14 (all ten builds, 26.x for the packet fix)
+
+Bugs found by running real AE2 and BarelyStorage against the bridge, plus a screen tour on every 26.x build.
+
+- JEI bridge: `IRecipeTransferHandlerHelper.getGuiSlotIndexToIngredientMap` now answers. It used to return an empty map, so AE2's crafting terminal handler said "No items" even with the ingredients in the inventory. With it, the + button on a real AE2 crafting terminal fills the crafting grid (checked on NeoForge 1.21.1).
+- 26.x: a recipe whose display a mod never registered a codec for (AE2's charger, inscriber and transform recipes on 26.3) is skipped in the recipe packet, with one log line per recipe type. Before, the packet failed to encode and the player was disconnected on joining.
+- 26.x: information pages from plugins (`addItemStackInfo`) wrapped their text on the recipe thread, which asserts on 26.x and switched the whole JEI bridge off when AE2 was installed. The wrapping now runs on the render thread (all builds).
+- JEI bridge: a transfer handler written as a non-public class (BarelyStorage's) is called through its public interface instead of being skipped with an access error.
+- Development tour for the 26.x builds (`BEI_SCREENS`, off by default): browser, search, variants, recipe popup, uses, settings, themes, cheat mode and planner, one screenshot each.
+- Checked in clients: the screen tour on Forge and NeoForge 26.1.2, 26.2 and 26.3; AE2 loading as a JEI plugin on NeoForge 26.1.2 and 26.3; BarelyStorage's `barelystorage:network` source counting a real terminal's items (cobblestone 5000, iron ingots 1280) on NeoForge 26.2.
+
 ## 2026.11.13 (all ten builds)
 
 - JEI bridge, 26.x: recipe slots made by plugins were empty because the 26.x JEI API adds ingredients through `add(...)` (items, item-likes, fluids, game ingredients, item templates, typed values) instead of `addItemStack` and friends. Slots now take all of them, on every build.

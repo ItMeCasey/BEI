@@ -28,6 +28,7 @@ final class JeiTour {
     private static final String BLOCK = System.getenv("BEI_JEI_TOUR_BLOCK");
     private static final boolean CHECK = System.getenv("BEI_JEI_TOUR_CHECK") != null;
     private static final boolean UI = System.getenv("BEI_JEI_TOUR_UI") != null;
+    private static final boolean AE2 = System.getenv("BEI_JEI_TOUR_AE2") != null;
 
     private record Step(int delay, Runnable action) {
     }
@@ -142,6 +143,45 @@ final class JeiTour {
             then(2, com.itmecasey.bei.compat.JeiSelfCheck::run);
             then(2, () -> Minecraft.getInstance().setScreen(new CheckScreen()));
             shoot("selfcheck_cards", 20);
+            then(2, () -> Minecraft.getInstance().setScreen(null));
+        }
+        if (AE2) {
+            // Builds a real AE2 crafting terminal: a cable on stone, the terminal part on the cable, then opens it.
+            then(2, () -> serverCommands("clear @p", "give @p ae2:fluix_glass_cable", "give @p ae2:crafting_terminal", "give @p minecraft:oak_planks 8", "give @p ae2:pattern_encoding_terminal"));
+            then(10, () -> placeBlock("minecraft:stone"));
+            then(20, () -> useAt(0, blockPos, net.minecraft.core.Direction.UP, 0.5, 1.0, 0.5));
+            then(10, () -> {
+                net.minecraft.core.BlockPos cell = blockPos.above().east();
+                serverCommands("setblock " + cell.getX() + " " + cell.getY() + " " + cell.getZ() + " ae2:creative_energy_cell");
+            });
+            then(10, () -> useAt(1, blockPos.above(), net.minecraft.core.Direction.UP, 0.5, 1.0, 0.5));
+            if (System.getenv("BEI_JEI_TOUR_AE2").equals("pattern")) {
+                // a pattern encoding terminal on the north side of the same cable: its + button needs no items
+                then(10, () -> useAt(3, blockPos.above(), net.minecraft.core.Direction.NORTH, 0.5, 0.5, 0.0));
+                then(10, () -> useAt(8, blockPos.above(), net.minecraft.core.Direction.NORTH, 0.5, 0.5, 0.03));
+            } else {
+                then(10, () -> useAt(8, blockPos.above(), net.minecraft.core.Direction.UP, 0.5, 0.97, 0.5));
+            }
+            then(40, () -> {
+                var screen = Minecraft.getInstance().screen;
+                Bei.LOGGER.info("BEI-AE2 screen after opening the terminal: {}", screen == null ? "none" : screen.getClass().getName());
+            });
+            shoot("ae2_terminal", 5);
+            then(30, () -> open("minecraft:stick", false));
+            then(30, JeiTour::logDimmed);
+            then(2, JeiTour::clickPlus);
+            then(20, () -> {
+                var menu = Minecraft.getInstance().player.containerMenu;
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < menu.slots.size(); i++) {
+                    var stack = menu.slots.get(i).getItem();
+                    if (!stack.isEmpty() && menu.slots.get(i).container != Minecraft.getInstance().player.getInventory()) {
+                        sb.append(i).append('=').append(stack.getItem()).append('x').append(stack.getCount()).append(' ');
+                    }
+                }
+                Bei.LOGGER.info("BEI-AE2 menu {} non-player slots with items after the + click: {}", menu.getClass().getSimpleName(), sb);
+            });
+            shoot("ae2_terminal_plus", 10);
             then(2, () -> Minecraft.getInstance().setScreen(null));
         }
         if (BLOCK != null) {
@@ -270,6 +310,44 @@ final class JeiTour {
     }
 
     /** Uses the block, so its screen opens when the server answers. */
+    /** Logs the reason the popup gives for a dimmed + button (a handler that said the recipe cannot be moved). */
+    private static void logDimmed() {
+        try {
+            var f = RecipePopup.class.getDeclaredField("DIMMED");
+            f.setAccessible(true);
+            java.util.List<?> dimmed = (java.util.List<?>) f.get(null);
+            for (Object d : dimmed) {
+                var reason = d.getClass().getDeclaredMethod("reason");
+                reason.setAccessible(true);
+                Bei.LOGGER.info("BEI-AE2 dimmed + button reason: {}", reason.invoke(d));
+            }
+            Bei.LOGGER.info("BEI-AE2 dimmed + buttons: {}", dimmed.size());
+        } catch (ReflectiveOperationException e) {
+            Bei.LOGGER.warn("BEI-AE2 could not read the dimmed buttons", e);
+        }
+    }
+
+    private static void serverCommands(String... commands) {
+        net.minecraft.server.MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        if (server != null) {
+            server.execute(() -> {
+                for (String command : commands) {
+                    server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), command);
+                }
+            });
+        }
+    }
+
+    /** Right-clicks a block face with a hotbar slot selected, at a position inside the block (fractions of the block). */
+    private static void useAt(int slot, net.minecraft.core.BlockPos pos, net.minecraft.core.Direction face, double fx, double fy, double fz) {
+        Minecraft game = Minecraft.getInstance();
+        game.player.getInventory().selected = slot;
+        net.minecraft.world.phys.BlockHitResult hit = new net.minecraft.world.phys.BlockHitResult(
+                new net.minecraft.world.phys.Vec3(pos.getX() + fx, pos.getY() + fy, pos.getZ() + fz), face, pos, false);
+        var result = game.gameMode.useItemOn(game.player, net.minecraft.world.InteractionHand.MAIN_HAND, hit);
+        Bei.LOGGER.info("BEI-AE2 used slot {} ({}) on {} {} -> {}", slot, game.player.getInventory().getItem(slot).getItem(), pos, face, result);
+    }
+
     private static void useBlock() {
         Minecraft game = Minecraft.getInstance();
         net.minecraft.world.phys.BlockHitResult hit = new net.minecraft.world.phys.BlockHitResult(

@@ -131,6 +131,9 @@ final class JeiViews {
             if (name.equals("createInternalError")) {
                 return error(IRecipeTransferError.Type.INTERNAL, null);
             }
+            if (name.equals("getGuiSlotIndexToIngredientMap") && args != null && args.length == 1) {
+                return ingredientMap(args[0]);
+            }
             if (name.startsWith("createUserError")) {
                 for (Object arg : args) {
                     if (arg instanceof Component message) {
@@ -141,6 +144,57 @@ final class JeiViews {
             }
             return JeiBridge.fallback(method.getReturnType());
         });
+    }
+
+    /**
+     * The recipe's ingredients keyed by their index in the recipe's input slots (the order BEI hands plugins in
+     * {@code getSlotViews(INPUT)}); empty ingredients are left out. Transfer handlers such as AE2's use it to find
+     * which ingredients the player or the network is missing.
+     */
+    static java.util.Map<Integer, Object> ingredientMap(Object holder) {
+        java.util.Map<Integer, Object> map = new java.util.HashMap<>();
+        try {
+            Object recipe = holder;
+            java.lang.reflect.Method value = JeiTransfers.find(holder.getClass(), "value", 0);
+            if (value != null) {
+                recipe = value.invoke(holder);
+            }
+            List<?> ingredients = ingredientList(recipe);
+            for (int i = 0; i < ingredients.size(); i++) {
+                Object ingredient = ingredients.get(i);
+                if (ingredient != null && !isEmptyIngredient(ingredient)) {
+                    map.put(i, ingredient);
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return map;
+        }
+        return map;
+    }
+
+    private static List<?> ingredientList(Object recipe) throws ReflectiveOperationException {
+        java.lang.reflect.Method list = JeiTransfers.find(recipe.getClass(), "getIngredients", 0);
+        if (list != null) {
+            return (List<?>) list.invoke(recipe);
+        }
+        java.lang.reflect.Method info = JeiTransfers.find(recipe.getClass(), "placementInfo", 0);
+        if (info != null) {
+            Object placement = info.invoke(recipe);
+            java.lang.reflect.Method ingredients = JeiTransfers.find(placement.getClass(), "ingredients", 0);
+            if (ingredients != null) {
+                return (List<?>) ingredients.invoke(placement);
+            }
+        }
+        return List.of();
+    }
+
+    private static boolean isEmptyIngredient(Object ingredient) {
+        try {
+            java.lang.reflect.Method empty = JeiTransfers.find(ingredient.getClass(), "isEmpty", 0);
+            return empty != null && Boolean.TRUE.equals(empty.invoke(ingredient));
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return false;
+        }
     }
 
     static Stream<ItemStack> stacks(List<ItemStack> items) {

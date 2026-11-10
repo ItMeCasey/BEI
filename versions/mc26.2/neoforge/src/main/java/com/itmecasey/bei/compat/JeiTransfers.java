@@ -344,9 +344,33 @@ final class JeiTransfers {
     static @Nullable Method find(Class<?> type, String name, int parameters) {
         for (Method method : type.getMethods()) {
             if (method.getName().equals(name) && method.getParameterCount() == parameters) {
-                return method;
+                return callable(method);
             }
         }
         return null;
+    }
+
+    /** A public method on a non-public class cannot be invoked from here; the same method on a public interface or superclass can. */
+    private static Method callable(Method method) {
+        if (java.lang.reflect.Modifier.isPublic(method.getDeclaringClass().getModifiers())) {
+            return method;
+        }
+        java.util.ArrayDeque<Class<?>> queue = new java.util.ArrayDeque<>();
+        queue.add(method.getDeclaringClass());
+        while (!queue.isEmpty()) {
+            Class<?> type = queue.poll();
+            if (java.lang.reflect.Modifier.isPublic(type.getModifiers())) {
+                for (Method candidate : type.getMethods()) {
+                    if (candidate.getName().equals(method.getName()) && candidate.getParameterCount() == method.getParameterCount()) {
+                        return candidate;
+                    }
+                }
+            }
+            if (type.getSuperclass() != null) {
+                queue.add(type.getSuperclass());
+            }
+            queue.addAll(java.util.Arrays.asList(type.getInterfaces()));
+        }
+        return method;
     }
 }

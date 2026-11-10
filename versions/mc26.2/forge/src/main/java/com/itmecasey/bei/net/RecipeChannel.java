@@ -38,6 +38,8 @@ public final class RecipeChannel {
         }
     }
 
+    private static final java.util.Set<String> SKIPPED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private RecipeChannel() {
     }
 
@@ -63,11 +65,28 @@ public final class RecipeChannel {
     /** The recipes go over as a byte block, decoded later on the main thread when the client's registries exist. */
     private static void write(Batch batch, FriendlyByteBuf buf) {
         RegistryFriendlyByteBuf wrapped = new RegistryFriendlyByteBuf(Unpooled.buffer(), serverAccess);
-        wrapped.writeVarInt(batch.recipes().size());
+        // Each recipe goes into its own buffer: a display whose type a mod never registered (AE2's charger recipes on
+        // 26.3, for one) is skipped instead of failing the whole packet, which would disconnect the player.
+        List<byte[]> encoded = new ArrayList<>();
         for (RecipeIndex.Raw raw : batch.recipes()) {
-            wrapped.writeUtf(raw.id());
-            wrapped.writeUtf(raw.typeId());
-            RecipeDisplay.STREAM_CODEC.encode(wrapped, raw.display());
+            RegistryFriendlyByteBuf one = new RegistryFriendlyByteBuf(Unpooled.buffer(), wrapped.registryAccess());
+            try {
+                one.writeUtf(raw.id());
+                one.writeUtf(raw.typeId());
+                RecipeDisplay.STREAM_CODEC.encode(one, raw.display());
+            } catch (RuntimeException e) {
+                if (SKIPPED.add(raw.typeId())) {
+                    Bei.LOGGER.warn("BEI cannot send recipes of type {} (for example {}): {}", raw.typeId(), raw.id(), e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage().substring(0, Math.min(120, e.getMessage().length())));
+                }
+                continue;
+            }
+            byte[] bytes = new byte[one.readableBytes()];
+            one.readBytes(bytes);
+            encoded.add(bytes);
+        }
+        wrapped.writeVarInt(encoded.size());
+        for (byte[] bytes : encoded) {
+            wrapped.writeBytes(bytes);
         }
         byte[] bytes = new byte[wrapped.readableBytes()];
         wrapped.readBytes(bytes);
