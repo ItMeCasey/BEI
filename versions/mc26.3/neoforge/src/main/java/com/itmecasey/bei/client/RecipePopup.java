@@ -777,12 +777,13 @@ public final class RecipePopup {
                 }
             }
         }
-        if (forwardClick(mx, my, event.button())) {
+        if (forwardClick(mx, my, MouseButtons.toApi(event.button()))) {
             return true;
         }
         ItemStack stack = hovered(mx, my);
-        if (stack != null && (event.button() == 0 || event.button() == 1)) {
-            open(stack.getItem(), event.button() == 1);
+        Boolean uses = MouseButtons.usesFor(event.button());
+        if (stack != null && uses != null) {
+            open(stack.getItem(), uses);
         }
         return true;
     }

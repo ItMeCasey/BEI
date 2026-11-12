@@ -141,6 +141,20 @@ final class ScreenTour {
             BrowserPanel.search("");
         });
 
+        // Click check through the game's own mouse handler (press, then release), as a real click arrives.
+        then(2, () -> BrowserPanel.search("iron ingot"));
+        for (int button : new int[] {com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT}) {
+            final int b = button;
+            final String name = MouseButtons.isLeft(b) ? "left" : "right";
+            then(SETTLE, () -> moveMouseToCell(0));
+            then(SETTLE, () -> mouseButton(b, 1));
+            then(3, () -> Bei.LOGGER.info("BEI-SCR click {} after press -> popup uses={}", name, RecipePopup.showingUses()));
+            then(3, () -> mouseButton(b, 0));
+            then(SETTLE, () -> {
+                Bei.LOGGER.info("BEI-SCR click {} after release -> popup uses={}", name, RecipePopup.showingUses());
+                RecipePopup.close();
+            });
+        }
         then(60, () -> RecipePopup.open(Items.CRAFTING_TABLE, false));
         shoot("recipe_popup", SETTLE);
         then(2, () -> {
@@ -183,6 +197,11 @@ final class ScreenTour {
         then(2, () -> Minecraft.getInstance().gui.setScreen(null));
         then(90, Project::refresh);
         shoot("planner_hud", SETTLE);
+    }
+
+    private static void mouseButton(int button, int action) {
+        Minecraft game = Minecraft.getInstance();
+        game.mouseHandler.onButton(game.getWindow().handle(), new net.minecraft.client.input.MouseButtonInfo(button, 0), action);
     }
 
     private static void moveMouseToCell(int index) {

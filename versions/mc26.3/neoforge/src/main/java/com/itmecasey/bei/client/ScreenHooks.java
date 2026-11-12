@@ -64,7 +64,7 @@ public final class ScreenHooks {
             }
             var slot = Ui.hoveredSlot(screen);
             if (slot != null) {
-                Cheats.place(screen.getMenu().containerId, slot, event.getMouseButtonEvent().button() == 1);
+                Cheats.place(screen.getMenu().containerId, slot, MouseButtons.isRight(event.getMouseButtonEvent().button()));
             } else {
                 Cheats.clearHeld();
             }

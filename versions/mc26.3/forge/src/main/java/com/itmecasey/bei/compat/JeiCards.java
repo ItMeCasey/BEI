@@ -557,7 +557,7 @@ final class JeiCards {
         try {
             Class<?> typeClass = Class.forName("com.mojang.blaze3d.platform.InputConstants$Type", false, JeiCards.class.getClassLoader());
             Object mouse = typeClass.getField("MOUSE").get(null);
-            return typeClass.getMethod("getOrCreate", int.class).invoke(mouse, button);
+            return typeClass.getMethod("getOrCreate", int.class).invoke(mouse, com.itmecasey.bei.client.MouseButtons.fromApi(button));
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             return null;
         }

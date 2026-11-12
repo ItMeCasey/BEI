@@ -58,7 +58,7 @@ public final class ScreenHooks {
             }
             var slot = screen.getSlotUnderMouse();
             if (slot != null) {
-                Cheats.place(screen.getMenu().containerId, slot, event.getInfo().button() == 1);
+                Cheats.place(screen.getMenu().containerId, slot, MouseButtons.isRight(event.getInfo().button()));
             } else {
                 Cheats.clearHeld();
             }

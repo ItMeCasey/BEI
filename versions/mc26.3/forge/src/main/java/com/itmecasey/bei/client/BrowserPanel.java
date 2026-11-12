@@ -439,7 +439,7 @@ public final class BrowserPanel {
 
     /** Starts a drag when a plugin has somewhere on this screen to drop the item; otherwise the click is a normal one. */
     private static boolean beginGhost(AbstractContainerScreen<?> screen, ItemStack stack, MouseButtonEvent event) {
-        if (event.button() != 0 || EditMode.on() || Cheats.enabled()) {
+        if (!MouseButtons.isLeft(event.button()) || EditMode.on() || Cheats.enabled()) {
             return false;
         }
         List<GhostTarget> targets = JeiHooks.ghostTargets(screen, stack);
@@ -519,7 +519,7 @@ public final class BrowserPanel {
     public static boolean mouseClicked(AbstractContainerScreen<?> screen, MouseButtonEvent event) {
         double x = event.x();
         double y = event.y();
-        if (event.button() == 0 && JeiHooks.clickAreas(screen, screen.getGuiLeft(), screen.getGuiTop(), x, y)) {
+        if (MouseButtons.isLeft(event.button()) && JeiHooks.clickAreas(screen, screen.getGuiLeft(), screen.getGuiTop(), x, y)) {
             return true;
         }
         if (GroupTip.isFrozen() && GroupTip.insideFrozen(x, y)) {
@@ -552,7 +552,7 @@ public final class BrowserPanel {
         boolean inBox = Ui.in(x, y, panelX + 6, searchY, searchW, 18);
         box.setFocused(inBox);
         if (inBox) {
-            if (event.button() == 1) {
+            if (MouseButtons.isRight(event.button())) {
                 box.setValue("");
             } else {
                 box.mouseClicked(event, false);
@@ -581,7 +581,7 @@ public final class BrowserPanel {
             if (index >= 0 && index < list.size()) {
                 Cell cell = list.get(index);
                 if (cell.isGroup()) {
-                    if (event.button() == 1) {
+                    if (MouseButtons.isRight(event.button())) {
                         Groups.toggleExpanded(cell.group());
                         dirty = true;
                     }
@@ -596,15 +596,18 @@ public final class BrowserPanel {
     /** A click on an item: cheat mode gives it, otherwise recipes (left) or uses (right). */
     private static void itemClicked(ItemStack stack, MouseButtonEvent event) {
         if (EditMode.on()) {
-            if (event.button() == 0) {
+            if (MouseButtons.isLeft(event.button())) {
                 EditMode.flip(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
             }
             return;
         }
-        if (Cheats.enabled() && event.button() == 0) {
+        if (Cheats.enabled() && MouseButtons.isLeft(event.button())) {
             Cheats.give(stack.getItem(), Minecraft.getInstance().hasShiftDown());
-        } else if (event.button() == 0 || event.button() == 1) {
-            RecipePopup.open(stack.getItem(), event.button() == 1);
+        } else {
+            Boolean uses = MouseButtons.usesFor(event.button());
+            if (uses != null) {
+                RecipePopup.open(stack.getItem(), uses);
+            }
         }
     }
 

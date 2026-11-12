@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.16 (Forge and NeoForge 26.3 only)
+
+- Fixed the item browser's mouse buttons on Minecraft 26.3: a left click opened an item's Uses and a right click did nothing. 26.3 renumbered the mouse buttons (left 1, middle 2, right 3) and BEI still compared against 0 and 1. Left click now opens Recipes and right click opens Uses, as in JEI. The same fix covers edit mode, cheat mode, the search box's right-click clear, group expansion, drag-and-drop and clicks inside plugin recipe cards. The plugin API still numbers buttons like JEI (0 left, 1 right).
+- New `MouseButtonsTest` covers left = recipes and right = uses.
+- The other eight builds (26.1.2, 26.2, 1.21.1, 1.20.1) are unchanged and stay on 2026.11.15; they still number the buttons 0 and 1.
+- Checked in a real Forge 26.3 pack client: left click opens Recipes and right click opens Uses.
+
 ## 2026.11.15 (all ten builds)
 
 - Item browser: when the index is built while joining a world (before the world exists), potions and enchanted books are now added by a rebuild on the first tick that has a world. Before, they could be missing until the setting was toggled.

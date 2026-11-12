@@ -101,7 +101,19 @@ public final class RecipePopup {
         return !HISTORY.isEmpty();
     }
 
+    /** Whether the open popup shows uses (true) or recipes (false); null when it is closed. For tests and the screen tour. */
+    public static @Nullable Boolean showingUses() {
+        Entry top = HISTORY.peek();
+        return top == null ? null : top.uses();
+    }
+
     public static void open(Item item, boolean uses) {
+        StackTraceElement[] trace = new Throwable().getStackTrace();
+        StringBuilder from = new StringBuilder();
+        for (int i = 1; i < Math.min(trace.length, 6); i++) {
+            from.append(trace[i]).append(" <- ");
+        }
+        com.itmecasey.bei.Bei.LOGGER.info("BEI-DIAG open item={} uses={} from {}", item, uses, from);
         SettingsPopup.close();
         HISTORY.push(new Entry(item, uses));
         FORWARD.clear();
@@ -777,12 +789,13 @@ public final class RecipePopup {
                 }
             }
         }
-        if (forwardClick(mx, my, event.button())) {
+        if (forwardClick(mx, my, MouseButtons.toApi(event.button()))) {
             return true;
         }
         ItemStack stack = hovered(mx, my);
-        if (stack != null && (event.button() == 0 || event.button() == 1)) {
-            open(stack.getItem(), event.button() == 1);
+        Boolean uses = MouseButtons.usesFor(event.button());
+        if (stack != null && uses != null) {
+            open(stack.getItem(), uses);
         }
         return true;
     }
