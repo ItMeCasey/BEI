@@ -1,29 +1,36 @@
 name: Build
 
-# Builds every version and loader on each push and pull request, so a break shows up before a release.
+# Builds the versions and loaders that a push or pull request changes (see .github/scripts/plan_matrix.py), so a break shows
+# up before a release. Docs, status and workflow only changes build nothing.
 on:
   push:
     branches: [main]
   pull_request:
 
 jobs:
+  plan:
+    name: Pick the changed builds
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      any: ${{ steps.plan.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: plan
+        env:
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: python3 .github/scripts/plan_matrix.py build --before "$BEFORE" --sha "${{ github.sha }}"
+
   build:
     name: ${{ matrix.dir }}
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - { dir: mc26.3/forge, id: mc26.3-forge, java: 25 }
-          - { dir: mc26.3/neoforge, id: mc26.3-neoforge, java: 25 }
-          - { dir: mc26.2/forge, id: mc26.2-forge, java: 25 }
-          - { dir: mc26.2/neoforge, id: mc26.2-neoforge, java: 25 }
-          - { dir: mc26.1.2/forge, id: mc26.1.2-forge, java: 25 }
-          - { dir: mc26.1.2/neoforge, id: mc26.1.2-neoforge, java: 25 }
-          - { dir: mc1.21.1/forge, id: mc1.21.1-forge, java: 21 }
-          - { dir: mc1.21.1/neoforge, id: mc1.21.1-neoforge, java: 21 }
-          - { dir: mc1.20.1/forge, id: mc1.20.1-forge, java: 17 }
-          - { dir: mc1.20.1/neoforge, id: mc1.20.1-neoforge, java: 17 }
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

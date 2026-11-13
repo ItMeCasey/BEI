@@ -39,35 +39,9 @@ jobs:
         with:
           ref: ${{ inputs.ref || inputs.tag || github.ref }}
       - id: pick
-        run: |
-          tag="${{ inputs.tag || github.ref_name }}"
-          all='[
-            {"dir":"mc26.3/forge","java":25,"mc":"26.3","loader":"forge"},
-            {"dir":"mc26.3/neoforge","java":25,"mc":"26.3","loader":"neoforge"},
-            {"dir":"mc26.2/forge","java":25,"mc":"26.2","loader":"forge"},
-            {"dir":"mc26.2/neoforge","java":25,"mc":"26.2","loader":"neoforge"},
-            {"dir":"mc26.1.2/forge","java":25,"mc":"26.1.2","loader":"forge"},
-            {"dir":"mc26.1.2/neoforge","java":25,"mc":"26.1.2","loader":"neoforge"},
-            {"dir":"mc1.21.1/forge","java":21,"mc":"1.21.1","loader":"forge"},
-            {"dir":"mc1.21.1/neoforge","java":21,"mc":"1.21.1","loader":"neoforge"},
-            {"dir":"mc1.20.1/forge","java":17,"mc":"1.20.1","loader":"forge"},
-            {"dir":"mc1.20.1/neoforge","java":17,"mc":"1.20.1","loader":"neoforge"}
-          ]'
-          picked='[]'
-          for dir in $(echo "$all" | jq -r '.[].dir'); do
-            version=$(grep '^mod_version=' "versions/$dir/gradle.properties" | cut -d= -f2)
-            if [ "$version" = "$tag" ]; then
-              echo "Including $dir (mod_version $version)"
-              picked=$(echo "$picked" | jq -c --argjson e "$(echo "$all" | jq -c --arg d "$dir" '.[] | select(.dir == $d)')" '. + [$e]')
-            else
-              echo "Skipping $dir: mod_version $version is not the tag $tag, so it is neither built nor uploaded"
-            fi
-          done
-          if [ "$picked" = "[]" ]; then
-            echo "No build has mod_version $tag" >&2
-            exit 1
-          fi
-          echo "matrix={\"include\":$picked}" >> "$GITHUB_OUTPUT"
+        # Same rule as before, now in .github/scripts/plan_matrix.py: a build is picked when its own mod_version equals the
+        # tag; the matrix entries keep dir, java, mc and loader. Fails when no build matches.
+        run: python3 .github/scripts/plan_matrix.py release --tag "${{ inputs.tag || github.ref_name }}"
 
   build:
     name: Build ${{ matrix.dir }}
