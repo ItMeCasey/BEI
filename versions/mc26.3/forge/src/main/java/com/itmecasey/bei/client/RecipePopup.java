@@ -328,7 +328,6 @@ public final class RecipePopup {
         int py = POS.y();
 
         g.nextStratum();
-        g.fill(0, 0, screenW, screenH, 0x70000000);
         Ui.panel(g, px, py, pw, ph);
         String tip = null;
         List<Component> tipLines = null;

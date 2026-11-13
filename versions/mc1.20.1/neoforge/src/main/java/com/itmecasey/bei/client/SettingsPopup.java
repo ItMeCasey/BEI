@@ -145,7 +145,6 @@ public final class SettingsPopup {
             }
         }
         g.nextStratum();
-        g.fill(0, 0, screenW, screenH, 0x70000000);
         Ui.panel(g, px, py, PW, ph);
         String tip = Ui.in(mx, my, px, py, PW - 24, 22) ? "bei.tip.drag" : null;
         Ui.gear(g, px + 7, py + 6, Ui.accent());

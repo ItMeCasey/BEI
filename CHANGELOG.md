@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.11.16 (all ten builds)
+
+- The recipe popup and the settings popup no longer darken the whole screen behind them. The game's own screen background is drawn exactly as vanilla draws it; BEI adds no dim or tint of its own.
+
 ## 2026.11.16 (Forge and NeoForge 26.3 only)
 
 - Fixed the item browser's mouse buttons on Minecraft 26.3: a left click opened an item's Uses and a right click did nothing. 26.3 renumbered the mouse buttons (left 1, middle 2, right 3) and BEI still compared against 0 and 1. Left click now opens Recipes and right click opens Uses, as in JEI. The same fix covers edit mode, cheat mode, the search box's right-click clear, group expansion, drag-and-drop and clicks inside plugin recipe cards. The plugin API still numbers buttons like JEI (0 left, 1 right).
