@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.17 (all ten builds)
+
+- Inventories and other container screens (opened with E, crafting tables, chests) no longer darken the world behind them: a small mixin skips vanilla's full-screen dim on container screens. Other screens are unchanged. The 1.20.1 builds now ship a mixin refmap.
+- Checked in clients: Forge 1.20.1 and NeoForge 1.20.1 jars in a real Forge 47.4.28 install, NeoForge 1.21.1, Forge 1.21.1, NeoForge 26.3 and Forge 26.1.2.
+
 ## 2026.11.16 (all ten builds)
 
 - The recipe popup and the settings popup no longer darken the whole screen behind them. The game's own screen background is drawn exactly as vanilla draws it; BEI adds no dim or tint of its own.

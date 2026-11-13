@@ -35,3 +35,6 @@ ${jei_identity}
     versionRange="[0,)"
     ordering="AFTER"
     side="CLIENT"
+
+[[mixins]]
+config="bei.mixins.json"
