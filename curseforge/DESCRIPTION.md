@@ -32,8 +32,6 @@ Barely Enough Items (BEI) is a minimalist, fast item and recipe viewer for Minec
 
 Add your own recipe categories, recipes and card looks with a **plugin**: mark a class `@BeiPlugin` and BEI finds it on its own, with no hard dependency, so your mod works fine without BEI installed. `./gradlew apiJar` builds just the API package. [Plugin guide](https://itmecasey.com/wiki/bei/)
 
-![Install](https://raw.githubusercontent.com/ItMeCasey/BEI/main/branding/banners/h_install.png)
-
 | Minecraft | Loaders |
 |---|---|
 | 26.3 | Forge, NeoForge |
