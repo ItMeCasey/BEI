@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.18 (Forge and NeoForge 26.3 only)
+
+- The recipe popup's scrollbar can be pressed and dragged again on 26.3. The game only keeps its left-button flag while no screen is open, so with a screen up BEI saw the button as released and the drag ended at once. It now reads the button the game is dragging with. The other builds read the button from the window and were not affected.
+- Checked in a client on NeoForge 26.3 by pressing the scrollbar through the game's own mouse handler: the list scrolled to the pressed position and the drag ended on release.
+
 ## 2026.11.17 (all ten builds)
 
 - Inventories and other container screens (opened with E, crafting tables, chests) no longer darken the world behind them: a small mixin skips vanilla's full-screen dim on container screens. Other screens are unchanged. The 1.20.1 builds now ship a mixin refmap.

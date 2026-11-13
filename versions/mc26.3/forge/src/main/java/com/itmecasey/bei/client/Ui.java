@@ -132,9 +132,22 @@ public final class Ui {
     }
 
     /** Whether the left mouse button is down right now, read straight from the window. */
+    private static java.lang.reflect.Field ACTIVE_BUTTON;
+
     public static boolean leftDown() {
         var game = Minecraft.getInstance();
-        return game.mouseHandler.isLeftPressed();
+        // The game only tracks its left-button flag while no screen is open, so with a screen up it stays false.
+        // The button it is dragging with (set on every press, cleared on release) tells the truth.
+        try {
+            if (ACTIVE_BUTTON == null) {
+                ACTIVE_BUTTON = game.mouseHandler.getClass().getDeclaredField("activeButton");
+                ACTIVE_BUTTON.setAccessible(true);
+            }
+            Object active = ACTIVE_BUTTON.get(game.mouseHandler);
+            return active instanceof net.minecraft.client.input.MouseButtonInfo info && info.button() == 0;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return game.mouseHandler.isLeftPressed();
+        }
     }
 
     public static boolean in(double mx, double my, int x, int y, int w, int h) {
