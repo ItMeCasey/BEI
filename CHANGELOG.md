@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.18 (26.3: 2026.11.19), all ten builds
+
+No hints in the interface.
+
+- Removed the search syntax help (placeholder and tooltip), the status tooltip, every settings row tooltip, the drag tooltips, the Shift/Ctrl key lines on the fill button, the "Hold Shift" line of group tooltips, and "You can make some of these" on station tooltips.
+- Button tooltips are plain names (Close, Back, Forward, Fill, Master Project). Messages state what happened without telling what to do.
+
 ## 2026.11.18 (Forge and NeoForge 26.3 only)
 
 - The recipe popup's scrollbar can be pressed and dragged again on 26.3. The game only keeps its left-button flag while no screen is open, so with a screen up BEI saw the button as released and the drag ended at once. It now reads the button the game is dragging with. The other builds read the button from the window and were not affected.

@@ -120,7 +120,7 @@ public final class BrowserPanel {
         box = new EditBox(font, panelX + 14, searchY + 5, searchW - 16, 8, Component.translatable("bei.search"));
         box.setBordered(false);
         box.setMaxLength(100);
-        box.setHint(Component.translatable("bei.search.hint"));
+        box.setHint(Component.translatable("bei.search"));
         box.setValue(query);
         box.setResponder(text -> {
             boolean changed = !text.equals(query);
@@ -254,7 +254,7 @@ public final class BrowserPanel {
                     graphics.item(entry.icon.getDefaultInstance(), x, trayY);
                 }
                 if (hover) {
-                    trayTip = Component.translatable(entry == null ? "bei.category.all.tip" : entry.translationKey());
+                    trayTip = Component.translatable(entry == null ? "bei.category.all" : entry.translationKey());
                 }
             }
             graphics.fill(panelX + 6, trayY + 20, panelX + panelW - 6, trayY + 21, Ui.dim());
@@ -355,13 +355,7 @@ public final class BrowserPanel {
         } else if (trayTip != null) {
             Ui.tip(graphics, font, trayTip, mouseX, mouseY);
         } else if (overGear) {
-            Ui.tip(graphics, font, List.of(Component.translatable("bei.settings.title"), Component.translatable("bei.tip.cheat")), mouseX, mouseY);
-        } else if (Ui.in(mouseX, mouseY, panelX + 6, searchY, searchW, 18)) {
-            Ui.tip(graphics, font, List.of(Component.translatable("bei.tip.search_mod"),
-                    Component.translatable("bei.tip.search_tag"), Component.translatable("bei.tip.search_tooltip"),
-                    Component.translatable("bei.tip.search_not"), Component.translatable("bei.tip.search_more")), mouseX, mouseY);
-        } else if (Ui.in(mouseX, mouseY, panelX + 6, panelY + 4, panelW - 12, 14)) {
-            Ui.tip(graphics, font, Component.translatable("bei.tip.status"), mouseX, mouseY);
+            Ui.tip(graphics, font, Component.translatable("bei.settings.title"), mouseX, mouseY);
         }
         renderGhost(graphics);
     }

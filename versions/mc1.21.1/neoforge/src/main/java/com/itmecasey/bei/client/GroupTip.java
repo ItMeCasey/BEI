@@ -68,10 +68,9 @@ final class GroupTip {
         int rows = (shown.size() + columns - 1) / columns;
         boolean more = members.size() > shown.size();
         String title = group.name + " (" + members.size() + ")";
-        String hint = I18n.get("bei.group.hint");
-        int inner = Math.max(Math.max(font.width(title), columns * CELL), frozen == null ? font.width(hint) : 0);
+        int inner = Math.max(Math.max(font.width(title), columns * CELL), 0);
         boxW = inner + 8;
-        boxH = 4 + 10 + 2 + rows * CELL + (more ? 10 : 0) + (frozen == null ? 10 : 0) + 4;
+        boxH = 4 + 10 + 2 + rows * CELL + (more ? 10 : 0) + 4;
         if (frozen != null) {
             boxX = frozenX;
             boxY = frozenY;
@@ -107,9 +106,6 @@ final class GroupTip {
         if (more) {
             g.text(font, I18n.get("bei.group.more", members.size() - shown.size()), boxX + 4, textY, Ui.dim(), false);
             textY += 10;
-        }
-        if (frozen == null) {
-            g.text(font, hint, boxX + 4, textY, Ui.dim(), false);
         }
         if (hoveredItem != null) {
             Ui.tip(g, font, hoveredItem.stack, mx, my);

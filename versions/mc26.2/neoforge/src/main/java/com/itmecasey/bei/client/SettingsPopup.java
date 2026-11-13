@@ -146,7 +146,7 @@ public final class SettingsPopup {
         }
         g.nextStratum();
         Ui.panel(g, px, py, PW, ph);
-        String tip = Ui.in(mx, my, px, py, PW - 24, 22) ? "bei.tip.drag" : null;
+        String tip = null;
         Ui.gear(g, px + 7, py + 6, Ui.accent());
         g.text(font, I18n.get("bei.settings.title"), px + 25, py + 9, Ui.text(), Ui.shadow());
         boolean overClose = Ui.in(mx, my, px + PW - 18, py + 5, 12, 12);
@@ -163,9 +163,6 @@ public final class SettingsPopup {
             boolean hover = Ui.in(mx, my, px + 6, y, PW - 12, ROW - 2);
             Ui.round(g, px + 6, y, PW - 12, ROW - 2, hover && enabled ? Ui.cardHover() : Ui.card());
             g.text(font, I18n.get("bei.settings." + KEYS[row]), px + 12, y + 4, enabled ? Ui.text() : Ui.dim(), false);
-            if (hover) {
-                tip = "bei.settings." + KEYS[row] + ".tip";
-            }
             if (row == THEME) {
                 String name = Themes.current().name();
                 g.text(font, name, px + PW - 12 - font.width(name), y + 4, Ui.accent(), false);

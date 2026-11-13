@@ -331,9 +331,6 @@ public final class RecipePopup {
         Ui.panel(g, px, py, pw, ph);
         String tip = null;
         List<Component> tipLines = null;
-        if (Ui.in(mx, my, px, py, pw - 24, 22)) {
-            tip = "bei.tip.drag";
-        }
 
         ItemStack icon = entry.item().getDefaultInstance();
         g.item(icon, px + 5, py + 4);
@@ -390,9 +387,6 @@ public final class RecipePopup {
                 tipLines = new ArrayList<>();
                 tipLines.add(Component.literal(station.label()));
                 tipLines.add(Component.translatable("bei.station.count", station.recipes().size()));
-                if (station.craftable()) {
-                    tipLines.add(Component.translatable("bei.station.craftable").withStyle(net.minecraft.ChatFormatting.GREEN));
-                }
             }
         }
 
@@ -456,7 +450,7 @@ public final class RecipePopup {
                     if (!plus.handler()) {
                         tip = "bei.tip.autofill";
                     } else if (tipLines == null) {
-                        tipLines = List.of(Component.translatable("bei.tip.transfer"), Component.translatable("bei.tip.transfer_keys"));
+                        tipLines = List.of(Component.translatable("bei.tip.transfer"));
                     }
                 }
             }
