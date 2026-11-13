@@ -47,3 +47,6 @@ server.out
 server.err
 *.out
 *.err
+
+# Client and server logs written by test runs
+logs/
