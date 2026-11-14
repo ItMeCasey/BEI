@@ -1,0 +1,12 @@
+{
+  "bookmarks": [
+    "minecraft:diamond",
+    "minecraft:stone",
+    "create:cogwheel"
+  ],
+  "sort": "mod",
+  "hidden": [
+    "minecraft:dirt",
+    "minecraft:cobblestone"
+  ]
+}

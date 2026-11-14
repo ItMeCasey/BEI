@@ -69,6 +69,9 @@ public final class BeiConfig {
             .defineInRange("settingsPopupX", -1, -1, 10000);
     private static final ForgeConfigSpec.IntValue SETTINGS_Y = BUILDER.comment("Top edge of the settings popup; -1 centers it.")
             .defineInRange("settingsPopupY", -1, -1, 10000);
+    private static final ForgeConfigSpec.ConfigValue<String> SORT_ORDER = BUILDER
+            .comment("How the item grid is ordered: creative (by creative tab), name, or mod. Allowed values: creative, name, mod.")
+            .define("sortOrder", "creative", value -> value instanceof String text && java.util.List.of("creative", "name", "mod").contains(text));
     private static final ForgeConfigSpec.ConfigValue<String> PROJECT_ITEM = BUILDER
             .comment("Item id of the Master Project (empty for none).")
             .define("projectItem", "");
@@ -233,6 +236,19 @@ public final class BeiConfig {
             SETTINGS_Y.set(y);
         }
         SPEC.save();
+    }
+
+    public static boolean isLoaded() {
+        return SPEC.isLoaded();
+    }
+
+    /** How the item grid is ordered: creative, name or mod. */
+    public static String sortOrder() {
+        return SPEC.isLoaded() ? SORT_ORDER.get() : "creative";
+    }
+
+    public static void setSortOrder(String value) {
+        set(SORT_ORDER, value);
     }
 
     public static String projectItem() {

@@ -75,6 +75,7 @@ public final class ClientInit {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
+        ClientData.migrateOnce();
         if (event.phase != TickEvent.Phase.END) {
             return;
         }

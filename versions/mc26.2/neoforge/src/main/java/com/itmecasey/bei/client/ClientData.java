@@ -17,7 +17,9 @@ import net.minecraft.client.Minecraft;
 
 /**
  * BEI's saved client data that is not a setting: bookmarks, items hidden in edit mode and the sort order, in
- * {@code config/bei_client.json} of the game folder (so it is kept per profile). Plain JSON, no loader classes.
+ * {@code config/bei-data.json} of the game folder (so it is kept per profile). Plain JSON, no loader classes: the loaders
+ * have no store for client data, only for settings, and the settings (the sort order included) live in {@code bei-client.toml}.
+ * The first run moves the old {@code config/bei_client.json} here and into the config, see {@link ClientMigration}.
  */
 public final class ClientData {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -37,7 +39,50 @@ public final class ClientData {
         if (testFile != null) {
             return testFile;
         }
-        return Path.of(String.valueOf(Minecraft.getInstance().gameDirectory)).resolve("config").resolve("bei_client.json");
+        return Path.of(String.valueOf(Minecraft.getInstance().gameDirectory)).resolve("config").resolve("bei-data.json");
+    }
+
+    /** Forgets what was read, so the next call reads the data file again (after the import wrote it). */
+    public static synchronized void reload() {
+        root = null;
+    }
+
+    private static boolean migrated;
+
+    /**
+     * Runs the one-time move of the old {@code bei_client.json} once the client config is loaded; call every tick until it has run
+     * (a file that could not be moved is tried again on the next launch).
+     */
+    public static synchronized void migrateOnce() {
+        if (migrated || !com.itmecasey.bei.BeiConfig.isLoaded() || testFile != null) {
+            return;
+        }
+        migrated = true;
+        Path config = Path.of(String.valueOf(Minecraft.getInstance().gameDirectory)).resolve("config");
+        String tomlName = "bei-client.toml";
+        String version = net.neoforged.fml.ModList.get().getModContainerById(Bei.MODID).map(c -> c.getModInfo().getVersion().toString()).orElse("?");
+        ClientMigration.migrate(config.resolve("bei_client.json"), config.resolve("bei-data.json"), version, tomlName, new ClientMigration.Target() {
+            @Override
+            public String current() {
+                return com.itmecasey.bei.BeiConfig.sortOrder();
+            }
+
+            @Override
+            public void write(String sortOrder) {
+                com.itmecasey.bei.BeiConfig.setSortOrder(sortOrder);
+            }
+
+            @Override
+            public String readBack() {
+                try {
+                    var m = java.util.regex.Pattern.compile("(?m)^\\s*sortOrder\\s*=\\s*\"([^\"]*)\"").matcher(Files.readString(config.resolve(tomlName), StandardCharsets.UTF_8));
+                    return m.find() ? m.group(1) : null;
+                } catch (IOException | RuntimeException e) {
+                    return null;
+                }
+            }
+        });
+        root = null;
     }
 
     private static JsonObject data() {

@@ -60,6 +60,7 @@ public final class ClientInit {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent.Post event) {
+        ClientData.migrateOnce();
         Minecraft game = Minecraft.getInstance();
         ItemIndex.tickTooltips(1_500_000L);
         Project.tick();

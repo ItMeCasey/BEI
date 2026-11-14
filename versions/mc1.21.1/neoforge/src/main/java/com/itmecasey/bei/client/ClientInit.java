@@ -56,6 +56,12 @@ public final class ClientInit {
             event.register(SHOW_USES);
             event.register(SET_PROJECT);
         }
+
+        /** The Mods screen opens the generated config screen for bei-client.toml. */
+        @SubscribeEvent
+        public static void registerConfigScreen(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
+            net.neoforged.fml.ModLoadingContext.get().getActiveContainer().registerExtensionPoint(net.neoforged.neoforge.client.gui.IConfigScreenFactory.class, net.neoforged.neoforge.client.gui.ConfigurationScreen::new);
+        }
     }
 
     /** The game's recipes arrived (or changed): index them. */
@@ -76,6 +82,7 @@ public final class ClientInit {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        ClientData.migrateOnce();
         Minecraft game = Minecraft.getInstance();
         ItemIndex.tickTooltips(1_500_000L);
         Project.tick();

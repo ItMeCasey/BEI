@@ -93,9 +93,9 @@ final class JeiTour {
         then(2, () -> BrowserPanel.setSearchText("%redstone ^red"));
         shoot("prefix_search", 25);
         then(2, () -> BrowserPanel.setSearchText(""));
-        then(2, () -> ClientData.setString("sort", "name"));
+        then(2, () -> com.itmecasey.bei.BeiConfig.setSortOrder("name"));
         shoot("sorted_by_name", 25);
-        then(2, () -> ClientData.setString("sort", "creative"));
+        then(2, () -> com.itmecasey.bei.BeiConfig.setSortOrder("creative"));
         then(2, EditMode::toggle);
         then(2, () -> BrowserPanel.setSearchText("diamond"));
         then(10, () -> EditMode.flip("minecraft:diamond_block"));

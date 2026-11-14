@@ -213,11 +213,11 @@ public final class BrowserPanel {
 
     /** How the grid is ordered; saved in the client data. */
     public static SortOrder sortOrder() {
-        return SortOrder.of(ClientData.string("sort", "creative"));
+        return SortOrder.of(com.itmecasey.bei.BeiConfig.sortOrder());
     }
 
     public static void cycleSortOrder() {
-        ClientData.setString("sort", sortOrder().next().key());
+        com.itmecasey.bei.BeiConfig.setSortOrder(sortOrder().next().key());
         dirty = true;
     }
 

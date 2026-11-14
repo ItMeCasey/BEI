@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.11.20, all ten builds
+
+The sort order is a real setting now.
+
+- `sortOrder` (`creative`, `name` or `mod`) is in `config/bei-client.toml` with the other settings. On NeoForge the Mods screen opens the generated config screen.
+- Bookmarks and the items hidden in edit mode are saved lists, not settings, so they stay JSON (the loaders have no store for client data): `config/bei-data.json`.
+- Migration on the first start: the sort order from `config/bei_client.json` goes into the toml (exact value, an invalid one falls back to creative), the lists into `bei-data.json`, and the old file is renamed `bei_client.json.back` with a first line saying where it migrated and why (the rest is the original bytes). If anything fails or the file is corrupt, the original stays and nothing is renamed. An existing `.back` is never overwritten (`.back2`, `.back3`). Unit tests use files in the form the releases wrote.
+
 ## 2026.11.19, all ten builds
 
 No hints in the interface.
