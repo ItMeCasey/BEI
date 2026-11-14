@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026.11.18 (26.3: 2026.11.19), all ten builds
+## 2026.11.19, all ten builds
 
 No hints in the interface.
 
